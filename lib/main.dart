@@ -1,19 +1,18 @@
 import 'dart:async';
-// import 'dart:io';
+import 'dart:io';
 import 'dart:ui';
 
+import 'package:app_links/app_links.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:flutter_portal/flutter_portal.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_logger/simple_logger.dart';
-import 'package:uni_links/uni_links.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/dao/org_dao/chat_server.dart';
 import 'package:vocechat_client/dao/org_dao/status.dart';
@@ -36,6 +35,11 @@ import 'package:vocechat_client/ui/settings/settings_page.dart';
 final navigatorKey = GlobalKey<NavigatorState>();
 
 Future<void> main() async {
+  // Self-hosted servers commonly use self-signed certificates. Without this,
+  // images and other network resources fail to load even though the API
+  // requests already accept them (issues #162 / #163).
+  HttpOverrides.global = MyHttpOverrides();
+
   WidgetsFlutterBinding.ensureInitialized();
 
   await _setUpFirebaseNotification();
@@ -80,8 +84,12 @@ Future<void> main() async {
     }
   }
 
-  SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
-      .then((value) {
+  // Support both portrait and landscape orientations (issue #182).
+  SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.landscapeLeft,
+    DeviceOrientation.landscapeRight,
+  ]).then((value) {
     runApp(VoceChatApp(defaultHome: defaultHome));
   });
 }
@@ -227,8 +235,7 @@ class _VoceChatAppState extends State<VoceChatApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return Portal(
-      child: MaterialApp(
+    return MaterialApp(
         debugShowCheckedModeBanner: false,
         navigatorKey: navigatorKey,
         title: 'VoceChat',
@@ -275,7 +282,6 @@ class _VoceChatAppState extends State<VoceChatApp> with WidgetsBindingObserver {
           Locale('zh', ''),
         ],
         home: _defaultHome,
-      ),
     );
   }
 
@@ -354,14 +360,13 @@ class _VoceChatAppState extends State<VoceChatApp> with WidgetsBindingObserver {
   void switchServerOnNotification(String serverId, int? uid, int? gid) async {}
 
   void _handleIncomingUniLink() async {
-    uriLinkStream.listen((Uri? uri) async {
-      if (uri == null) return;
+    AppLinks().uriLinkStream.listen((Uri uri) {
       _parseLink(uri);
     });
   }
 
   void _handleInitUniLink() async {
-    final initialUri = await getInitialUri();
+    final initialUri = await AppLinks().getInitialLink();
     if (initialUri == null) return;
     _parseLink(initialUri);
   }
@@ -463,12 +468,14 @@ class UniLinkData {
 
 enum UniLinkType { login, register }
 
-// A temp solution related to SSL/TLS certificate
-// class MyHttpOverrides extends HttpOverrides {
-//   @override
-//   HttpClient createHttpClient(SecurityContext? context) {
-//     return super.createHttpClient(context)
-//       ..badCertificateCallback =
-//           (X509Certificate cert, String host, int port) => true;
-//   }
-// }
+// A temp solution related to SSL/TLS certificate. Self-hosted servers often
+// use self-signed certificates, and `Image.network` / WebSocket connections do
+// not go through Dio's bad-certificate handler.
+class MyHttpOverrides extends HttpOverrides {
+  @override
+  HttpClient createHttpClient(SecurityContext? context) {
+    return super.createHttpClient(context)
+      ..badCertificateCallback =
+          (X509Certificate cert, String host, int port) => true;
+  }
+}

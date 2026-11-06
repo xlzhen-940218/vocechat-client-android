@@ -12,14 +12,15 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # build by specifying --build-name and --build-number, respectively.
 # In Android, build-name is used as versionName while build-number used as versionCode.
 # Read more about Android versioning at https://developer.android.com/studio/publish/versioning
-# In iOS, build-name is used as CFBundleShortVersionString while build-number used as CFBundleVersion.
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
 # Read more about iOS versioning at
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 
 version: 0.2.113+83
 
 environment:
-  sdk: ">=2.17.0 <3.0.0"
+  sdk: ">=3.9.0 <4.0.0"
+  flutter: ">=3.35.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -30,7 +31,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-    
 
   # for multi-language 
   flutter_localizations:
@@ -38,102 +38,84 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.2
-  flutter_slidable: ^3.0.0
-  sqflite: ^2.0.1
-  simple_logger: ^1.9.0
-  logging: ^1.1.1
-  image: ^4.1.3
-  uuid: ^3.0.5
-  equatable: ^2.0.3
-  convert: ^3.0.1 
+  cupertino_icons: ^1.0.8
+  flutter_slidable: ^3.1.2
+  sqflite: ^2.3.3
+  simple_logger: ^1.10.2
+  logging: ^1.3.0
+  image: ^4.3.0
+  uuid: ^4.5.1
+  equatable: ^2.0.7
+  convert: ^3.1.2
   intl: any
-  json_annotation: ^4.4.0
-  dio: ^5.3.3
-  image_picker: ^1.0.4
-  flutter_image_compress: ^1.1.0
-  package_info_plus: ^4.1.0
-  lpinyin: ^2.0.3
-  firebase_core: ^2.4.1
-  firebase_messaging: ^14.5.0
-  firebase_core_platform_interface: ^4.5.2
-  saver_gallery: ^2.0.1
-  connectivity_plus: 3.0.3
-  flutter_svg: ^1.0.3
-  flutter_markdown: ^0.6.15
-  url_launcher: ^6.1.11
-  file_picker: ^5.2.5
-  mime: ^1.0.4
-  http_parser: ^4.0.0
-  flutter_portal: ^1.0.0
-  share_plus: ^7.1.0
+  json_annotation: ^4.9.0
+  dio: ^5.7.0
+  image_picker: ^1.1.2
+  flutter_image_compress: ^2.3.0
+  package_info_plus: ^10.2.2
+  pinyin: ^3.3.0
+  firebase_core: ^5.1.0
+  firebase_messaging: ^17.0.1
+  saver_gallery: ^5.1.0
+  connectivity_plus: ^5.0.1
+  flutter_svg: ^2.0.10
+  flutter_markdown: ^0.6.23
+  url_launcher: ^6.3.1
+  file_picker: ^13.3.2
+  mime: ^2.0.0
+  http_parser: ^4.1.0
+  share_plus: ^13.3.1
   event_bus: ^2.0.0
-  universal_html: ^2.0.8
-  permission_handler: ^10.2.0
-  path_provider: ^2.0.11
-  flutter_pdfview: 1.2.9
-  wechat_assets_picker: ^9.0.4
-  wechat_camera_picker: ^4.2.2
-  any_link_preview: ^3.0.0
-  chewie: ^1.3.4
-  video_player: ^2.4.8
-  scroll_to_index: ^3.0.1
-  sqflite_common_ffi: ^2.1.1+1
-  sqlite3_flutter_libs: ^0.5.15
-  flutter_secure_storage: ^7.0.1
-  uni_links: ^0.5.1
-  qr_flutter: ^4.0.0
-  mobile_scanner: ^3.0.0
-  async: ^2.9.0
-  shared_preferences: ^2.1.1
-  record: ^4.4.4
-  audio_session: ^0.1.13
-  provider: ^6.0.5
-  audioplayers: ^5.2.0
-  device_info_plus: 8.2.2
-  android_id: ^0.3.3
-  photo_view: ^0.14.0
-  video_thumbnail: ^0.5.3
-  web_socket_channel: ^2.4.0
-  
-  
+  universal_html: ^2.2.4
+  permission_handler: ^11.3.1
+  path_provider: ^2.1.4
+  flutter_pdfview: ^1.3.2
+  wechat_assets_picker: ^9.3.1
+  wechat_camera_picker: ^4.3.0
+  any_link_preview: ^3.0.3
+  chewie: ^1.8.1
+  video_player: ^2.9.0
+  sqflite_common_ffi: ^2.3.3
+  sqlite3_flutter_libs: ^0.5.24
+  flutter_secure_storage: ^11.2.0
+  app_links: ^6.3.2
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^3.5.7
+  async: ^2.11.0
+  shared_preferences: ^2.3.2
+  record: ^7.1.2
+  audio_session: ^0.1.21
+  provider: ^6.1.2
+  audioplayers: ^5.2.1
+  device_info_plus: ^13.3.0
+  android_id: ^0.4.0
+  photo_view: ^0.15.0
+  web_socket_channel: ^3.0.1
+  azlistview_plus: ^3.0.0
 
-dependency_overrides:
-  azlistview:
-    git: 
-      url: https://github.com/shuotwang/azlistview.git
-      ref: master
-  
-  # for debug use
-  # voce_widgets:
-  #   path: /Users/shuotwang/Documents/privoce/my_projects/voce_widgets/voce_widgets/
-  
-  # If commit hash is not the same as the latest on github, add or remove '.git' to or from the end of url.
-  # for example: https://domain.com.git/ -> https://domain.com/, and run pub get.
+  # Vendored locally: the upstream voce_widgets git dependency still declares
+  # `sdk: <3.0.0`, which cannot be resolved with Dart 3.
   voce_widgets:
-    git:
-      url: https://github.com/Privoce/voce_widgets.git
-      ref: master
+    path: third_party/voce_widgets
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
 
-  json_serializable: ^6.1.4
-  build_runner: ^2.1.7
+  json_serializable: ^6.9.0
+  build_runner: ^2.4.13
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^2.0.1
-
+  flutter_lints: ^4.0.0
 
   # To Generate app icons for iOS and Android
-  flutter_launcher_icons: ^0.13.1
+  flutter_launcher_icons: ^0.14.2
 
-flutter_icons:
+flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
   image_path: "assets/images/vocechat_icon.jpg"

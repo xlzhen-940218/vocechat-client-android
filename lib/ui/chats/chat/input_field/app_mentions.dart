@@ -3,7 +3,6 @@ library flutter_mentions;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_portal/flutter_portal.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
 import 'package:vocechat_client/ui/chats/chat/input_field/chat_textfield.dart';
 import 'package:vocechat_client/ui/chats/chat/input_field/voice_button.dart';
@@ -401,6 +400,10 @@ class AppMentionsState extends State<AppMentions> {
   LengthMap? _selectedMention;
   String _pattern = '';
 
+  final OverlayPortalController _portalController = OverlayPortalController();
+  final LayerLink _layerLink = LayerLink();
+  double _fieldWidth = 0;
+
   late final ValueNotifier<InputType> _fieldType;
 
   Map<String, Annotation> mapToAnotation() {
@@ -471,39 +474,64 @@ class AppMentionsState extends State<AppMentions> {
         TextSelection.fromPosition(TextPosition(offset: nextCursorPosition));
   }
 
+  bool _isWhitespace(int codeUnit) {
+    return codeUnit == 0x20 ||
+        codeUnit == 0x09 ||
+        codeUnit == 0x0A ||
+        codeUnit == 0x0B ||
+        codeUnit == 0x0C ||
+        codeUnit == 0x0D ||
+        codeUnit == 0xA0;
+  }
+
   void suggestionListerner() {
+    final text = controller!.text;
     final cursorPos = controller!.selection.baseOffset;
 
-    if (cursorPos >= 0) {
-      var _pos = 0;
+    if (cursorPos < 0 || cursorPos > text.length) {
+      return;
+    }
 
-      final lengthMap = <LengthMap>[];
+    // Only the word under the cursor can trigger the suggestion list. Scanning
+    // that single word is much cheaper than splitting the whole message and
+    // rebuilding on every keystroke (issue #198).
+    int start = cursorPos;
+    while (start > 0 && !_isWhitespace(text.codeUnitAt(start - 1))) {
+      start--;
+    }
 
-      // split on each word and generate a list with start & end position of each word.
-      controller!.value.text.split(RegExp(r'(\s)')).forEach((element) {
-        lengthMap.add(
-            LengthMap(str: element, start: _pos, end: _pos + element.length));
+    int end = cursorPos;
+    while (end < text.length && !_isWhitespace(text.codeUnitAt(end))) {
+      end++;
+    }
 
-        _pos = _pos + element.length + 1;
-      });
+    final word = text.substring(start, end);
+    final show = end == cursorPos &&
+        widget.mentions
+            .any((mention) => word.toLowerCase().contains(mention.trigger));
 
-      final val = lengthMap.indexWhere((element) {
-        _pattern = widget.mentions.map((e) => e.trigger).join('|');
+    final selectedMention =
+        show ? LengthMap(str: word, start: start, end: end) : null;
 
-        return element.end == cursorPos &&
-            element.str.toLowerCase().contains(RegExp(_pattern));
-      });
+    final changed = _selectedMention?.str != selectedMention?.str ||
+        _selectedMention?.start != selectedMention?.start ||
+        _selectedMention?.end != selectedMention?.end;
 
-      showSuggestions.value = val != -1;
+    if (!changed && showSuggestions.value == show) {
+      return;
+    }
+
+    _selectedMention = selectedMention;
+
+    if (showSuggestions.value != show) {
+      showSuggestions.value = show;
 
       if (widget.onSuggestionVisibleChanged != null) {
-        widget.onSuggestionVisibleChanged!(val != -1);
+        widget.onSuggestionVisibleChanged!(show);
       }
-
-      setState(() {
-        _selectedMention = val == -1 ? null : lengthMap[val];
-      });
     }
+
+    setState(() {});
   }
 
   void inputListeners() {
@@ -530,6 +558,8 @@ class AppMentionsState extends State<AppMentions> {
   void initState() {
     final data = mapToAnotation();
 
+    _pattern = widget.mentions.map((e) => e.trigger).join('|');
+
     controller = AnnotationEditingController(data, widget.enableMention);
 
     _voiceButtonState = widget.voiceButtonState;
@@ -542,16 +572,30 @@ class AppMentionsState extends State<AppMentions> {
 
     controller!.addListener(suggestionListerner);
     controller!.addListener(inputListeners);
+    showSuggestions.addListener(_updatePortalVisibility);
 
     _fieldType = widget.inputFieldType ?? ValueNotifier(InputType.text);
 
     super.initState();
   }
 
+  void _updatePortalVisibility() {
+    // OverlayPortal requires the widget to be attached before show/hide.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (showSuggestions.value) {
+        _portalController.show();
+      } else {
+        _portalController.hide();
+      }
+    });
+  }
+
   @override
   void dispose() {
     controller!.removeListener(suggestionListerner);
     controller!.removeListener(inputListeners);
+    showSuggestions.removeListener(_updatePortalVisibility);
 
     super.dispose();
   }
@@ -560,6 +604,7 @@ class AppMentionsState extends State<AppMentions> {
   void didUpdateWidget(widget) {
     super.didUpdateWidget(widget);
 
+    _pattern = widget.mentions.map((e) => e.trigger).join('|');
     controller!.mapping = mapToAnotation();
   }
 
@@ -634,16 +679,38 @@ class AppMentionsState extends State<AppMentions> {
 
     if (!widget.enableMention) {
       return inputField;
-    } else {
-      // This container widget cannot be removed due to UI building issue.
-      return Container(
-        child: PortalTarget(
-            anchor: Aligned(
-                follower: Alignment.bottomCenter, target: Alignment.topCenter),
-            portalFollower: _buildMentionsPortal(list),
-            child: inputField),
-      );
     }
+
+    // OverlayPortal (built into Flutter) replaces flutter_portal, which is
+    // incompatible with Dart 3.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _fieldWidth = constraints.maxWidth;
+
+        return OverlayPortal(
+          controller: _portalController,
+          overlayChildBuilder: (context) {
+            return CompositedTransformFollower(
+              link: _layerLink,
+              showWhenUnlinked: false,
+              targetAnchor: Alignment.topCenter,
+              followerAnchor: Alignment.bottomCenter,
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: _fieldWidth,
+                  child: _buildMentionsPortal(list),
+                ),
+              ),
+            );
+          },
+          child: CompositedTransformTarget(
+            link: _layerLink,
+            child: inputField,
+          ),
+        );
+      },
+    );
   }
 
   ValueListenableBuilder<bool> _buildMentionsPortal(Mention list) {

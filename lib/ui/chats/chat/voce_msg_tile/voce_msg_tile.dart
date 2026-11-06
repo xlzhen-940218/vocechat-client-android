@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/app_consts.dart';
 import 'package:vocechat_client/dao/init_dao/chat_msg.dart';
@@ -406,6 +406,15 @@ class _VoceMsgTileState extends State<VoceMsgTile> {
             return VoceTextBubble(chatMsgM: chatMsgM);
           } else if (chatMsgM.isMarkdownMsg) {
             return VoceMdBubble(chatMsgM: chatMsgM);
+          } else if (chatMsgM.isAudioMsg) {
+            return ValueListenableBuilder<ChatLayoutMode>(
+                valueListenable: chatLayoutMode,
+                builder: (context, mode, _) {
+                  return VoceAudioBubble.tileData(
+                      key: ObjectKey(widget.tileData),
+                      tileData: widget.tileData,
+                      rightAlign: mode == ChatLayoutMode.SelfRight && isSelf);
+                });
           } else if (chatMsgM.isFileMsg) {
             if (chatMsgM.isImageMsg) {
               return VoceTileImageBubble.tileData(
@@ -428,15 +437,6 @@ class _VoceMsgTileState extends State<VoceMsgTile> {
                   getFile: (onProgress) =>
                       FileHandler.singleton.getFile(chatMsgM, onProgress));
             }
-          } else if (chatMsgM.isAudioMsg) {
-            return ValueListenableBuilder<ChatLayoutMode>(
-                valueListenable: chatLayoutMode,
-                builder: (context, mode, _) {
-                  return VoceAudioBubble.tileData(
-                      key: ObjectKey(widget.tileData),
-                      tileData: widget.tileData,
-                      rightAlign: mode == ChatLayoutMode.SelfRight && isSelf);
-                });
           } else if (chatMsgM.isArchiveMsg) {
             return VoceArchiveBubble.tileData(
                 key: ObjectKey(widget.tileData), tileData: widget.tileData);

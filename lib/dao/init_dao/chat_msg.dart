@@ -171,10 +171,53 @@ class ChatMsgM extends Equatable with M {
     }
   }
 
+  static const List<String> _imageExtensions = [
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".webp",
+    ".bmp",
+    ".heic",
+    ".heif"
+  ];
+
+  static const List<String> _videoExtensions = [
+    ".mp4",
+    ".mov",
+    ".m4v",
+    ".webm",
+    ".mkv",
+    ".avi",
+    ".3gp",
+    ".flv",
+    ".wmv",
+    ".mpeg",
+    ".mpg",
+    ".ogv",
+    ".ts"
+  ];
+
+  /// Uploaded files may be stored by the server as `application/octet-stream`
+  /// without a usable mime type, so fall back to the file name extension
+  /// (issue #134).
+  String get _fileNameInProperties {
+    try {
+      final name = json.decode(detail)["properties"]["name"] as String?;
+      return name?.toLowerCase() ?? "";
+    } catch (e) {
+      return "";
+    }
+  }
+
   bool get isImageMsg {
     try {
       final type = json.decode(detail)["properties"]["content_type"] as String?;
-      return type?.split("/").first.toLowerCase() == 'image';
+      if (type?.split("/").first.toLowerCase() == 'image') {
+        return true;
+      }
+      final name = _fileNameInProperties;
+      return _imageExtensions.any((extension) => name.endsWith(extension));
     } catch (e) {
       return false;
     }
@@ -183,7 +226,11 @@ class ChatMsgM extends Equatable with M {
   bool get isVideoMsg {
     try {
       final type = json.decode(detail)["properties"]["content_type"] as String?;
-      return type?.split("/").first.toLowerCase() == 'video';
+      if (type?.split("/").first.toLowerCase() == 'video') {
+        return true;
+      }
+      final name = _fileNameInProperties;
+      return _videoExtensions.any((extension) => name.endsWith(extension));
     } catch (e) {
       return false;
     }
@@ -192,16 +239,34 @@ class ChatMsgM extends Equatable with M {
   bool get isGifImageMsg {
     try {
       final type = json.decode(detail)["properties"]["content_type"] as String?;
-      return type?.toLowerCase() == 'image/gif';
+      if (type?.toLowerCase() == 'image/gif') {
+        return true;
+      }
+      return _fileNameInProperties.endsWith(".gif");
     } catch (e) {
       return false;
     }
   }
 
+  /// Voice messages are sent as `vocechat/file` because the server no longer
+  /// accepts the legacy `vocechat/audio` content type, so an audio mime type or
+  /// file extension also counts as an audio message.
+  static const _audioExtensions = [".m4a", ".aac", ".mp3", ".wav", ".ogg", ".opus", ".amr"];
+
   bool get isAudioMsg {
     try {
-      final type = json.decode(detail)["content_type"] as String?;
-      return type == typeAudio;
+      final detailMap = json.decode(detail) as Map<String, dynamic>;
+      final type = detailMap["content_type"] as String?;
+      if (type == typeAudio) return true;
+      if (type != typeFile) return false;
+
+      final properties = detailMap["properties"];
+      final mime =
+          (properties?["content_type"] as String? ?? "").toLowerCase();
+      if (mime.startsWith("audio/")) return true;
+
+      final name = _fileNameInProperties;
+      return _audioExtensions.any((extension) => name.endsWith(extension));
     } catch (e) {
       return false;
     }

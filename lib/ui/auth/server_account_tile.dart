@@ -10,7 +10,7 @@ import 'package:vocechat_client/ui/chats/chats/server_account_data.dart';
 import 'package:vocechat_client/ui/widgets/avatar/voce_avatar.dart';
 import 'package:vocechat_client/ui/widgets/avatar/voce_avatar_size.dart';
 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 
 class ServerAccountTile extends StatefulWidget {
   final ValueNotifier<ServerAccountData> accountData;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
+import 'package:vocechat_client/ui/widgets/voce_byte_text_input_formatter.dart';
 import 'package:voce_widgets/voce_widgets.dart';
 
 class AppTextField extends StatelessWidget {
@@ -57,7 +58,9 @@ class AppTextField extends StatelessWidget {
             autofocus: autofocus,
             textInputAction: textInputAction,
             inputFormatters:
-                maxLength != null ? [VoceTextInputFormatter(maxLength!)] : null,
+                maxLength != null
+                    ? [VoceByteTextInputFormatter(maxLength!)]
+                    : null,
             decoration: InputDecoration(
                 isDense: true,
                 counterText: "",

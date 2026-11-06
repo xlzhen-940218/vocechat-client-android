@@ -1,8 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/api/lib/admin_user_api.dart';
-import 'package:vocechat_client/api/lib/user_api.dart';
 import 'package:vocechat_client/api/models/group/group_info.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/app_consts.dart';
@@ -407,55 +406,29 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
   Future<void> blockContact() async {
     // Remove contact from contact list.
     // All messages will be kept.
+    // Contact status is kept locally since the server no longer exposes
+    // /user/update_contact_status.
     showBusyDialog();
 
-    await UserApi()
-        .updateContactStatus(
-            _userInfoMNotifier.value.uid, ContactUpdateAction.block)
-        .then((res) async {
-      if (res.statusCode == 200) {
-        await ContactDao()
-            .updateContact(_userInfoMNotifier.value.uid, ContactStatus.blocked)
-            .then((upatedContactM) async {
-          dismissBusyDialog();
-        });
-      } else {
-        dismissBusyDialog();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.networkError)));
-      }
-    }).onError((error, stackTrace) {
+    try {
+      await ContactDao()
+          .updateContact(_userInfoMNotifier.value.uid, ContactStatus.blocked);
+    } catch (error) {
       App.logger.severe(error);
-      dismissBusyDialog();
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.networkError)));
-    });
+    }
+    dismissBusyDialog();
   }
 
   Future<void> unblockContact() async {
     showBusyDialog();
 
-    await UserApi()
-        .updateContactStatus(
-            _userInfoMNotifier.value.uid, ContactUpdateAction.unblock)
-        .then((res) async {
-      if (res.statusCode == 200) {
-        await ContactDao()
-            .updateContact(_userInfoMNotifier.value.uid, ContactStatus.none)
-            .then((upatedContactM) async {
-          dismissBusyDialog();
-        });
-      } else {
-        dismissBusyDialog();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.networkError)));
-      }
-    }).onError((error, stackTrace) {
+    try {
+      await ContactDao()
+          .updateContact(_userInfoMNotifier.value.uid, ContactStatus.none);
+    } catch (error) {
       App.logger.severe(error);
-      dismissBusyDialog();
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.networkError)));
-    });
+    }
+    dismissBusyDialog();
   }
 
   Future<void> removeContact() async {
@@ -463,53 +436,25 @@ class _ContactDetailPageState extends State<ContactDetailPage> {
     // All messages will be kept.
     showBusyDialog();
 
-    await UserApi()
-        .updateContactStatus(
-            _userInfoMNotifier.value.uid, ContactUpdateAction.remove)
-        .then((res) async {
-      if (res.statusCode == 200) {
-        await ContactDao()
-            .updateContact(_userInfoMNotifier.value.uid, ContactStatus.none)
-            .then((upatedContactM) async {
-          dismissBusyDialog();
-        });
-      } else {
-        dismissBusyDialog();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.networkError)));
-      }
-    }).onError((error, stackTrace) {
+    try {
+      await ContactDao()
+          .updateContact(_userInfoMNotifier.value.uid, ContactStatus.none);
+    } catch (error) {
       App.logger.severe(error);
-      dismissBusyDialog();
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.networkError)));
-    });
+    }
+    dismissBusyDialog();
   }
 
   Future<void> addContact() async {
     showBusyDialog();
 
-    await UserApi()
-        .updateContactStatus(
-            _userInfoMNotifier.value.uid, ContactUpdateAction.add)
-        .then((res) async {
-      if (res.statusCode == 200) {
-        await ContactDao()
-            .updateContact(_userInfoMNotifier.value.uid, ContactStatus.added)
-            .then((upatedContactM) async {
-          dismissBusyDialog();
-        });
-      } else {
-        dismissBusyDialog();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.networkError)));
-      }
-    }).onError((error, stackTrace) {
+    try {
+      await ContactDao()
+          .updateContact(_userInfoMNotifier.value.uid, ContactStatus.added);
+    } catch (error) {
       App.logger.severe(error);
-      dismissBusyDialog();
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.networkError)));
-    });
+    }
+    dismissBusyDialog();
   }
 
   Future<void> _onUser(

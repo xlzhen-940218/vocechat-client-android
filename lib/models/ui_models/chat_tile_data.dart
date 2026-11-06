@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/api/lib/user_api.dart';
 import 'package:vocechat_client/app_consts.dart';
 import 'package:vocechat_client/dao/init_dao/chat_msg.dart';
@@ -395,60 +395,38 @@ class ChatTileData {
   }
 
   Future<void> pin() async {
+    // Pinned state is kept locally. The server no longer exposes
+    // /user/pin_chat.
+    final pinnedAt = DateTime.now().millisecondsSinceEpoch;
     if (isChannel) {
-      await UserApi().pinChat(gid: groupInfoM!.value.gid).then((res) async {
-        if (res.statusCode == 200) {
-          await UserSettingsDao()
-              .updateGroupSettings(groupInfoM!.value.gid,
-                  pinnedAt: DateTime.now().millisecondsSinceEpoch)
-              .then((value) {
-            if (value != null) {
-              globals.userSettings.value = value;
-            }
-          });
-        }
-      });
+      final value = await UserSettingsDao().updateGroupSettings(
+          groupInfoM!.value.gid,
+          pinnedAt: pinnedAt);
+      if (value != null) {
+        globals.userSettings.value = value;
+      }
     } else if (isUser) {
-      await UserApi().pinChat(uid: userInfoM!.value.uid).then((res) async {
-        if (res.statusCode == 200) {
-          await UserSettingsDao()
-              .updateDmSettings(userInfoM!.value.uid,
-                  pinnedAt: DateTime.now().millisecondsSinceEpoch)
-              .then((value) {
-            if (value != null) {
-              globals.userSettings.value = value;
-            }
-          });
-        }
-      });
+      final value = await UserSettingsDao()
+          .updateDmSettings(userInfoM!.value.uid, pinnedAt: pinnedAt);
+      if (value != null) {
+        globals.userSettings.value = value;
+      }
     }
   }
 
   Future<void> unpin() async {
     if (isChannel) {
-      await UserApi().unpinChat(gid: groupInfoM!.value.gid).then((res) async {
-        if (res.statusCode == 200) {
-          await UserSettingsDao()
-              .updateGroupSettings(groupInfoM!.value.gid, pinnedAt: null)
-              .then((value) {
-            if (value != null) {
-              globals.userSettings.value = value;
-            }
-          });
-        }
-      });
+      final value = await UserSettingsDao()
+          .updateGroupSettings(groupInfoM!.value.gid, pinnedAt: null);
+      if (value != null) {
+        globals.userSettings.value = value;
+      }
     } else if (isUser) {
-      await UserApi().unpinChat(uid: userInfoM!.value.uid).then((res) async {
-        if (res.statusCode == 200) {
-          await UserSettingsDao()
-              .updateDmSettings(userInfoM!.value.uid, pinnedAt: null)
-              .then((value) {
-            if (value != null) {
-              globals.userSettings.value = value;
-            }
-          });
-        }
-      });
+      final value = await UserSettingsDao()
+          .updateDmSettings(userInfoM!.value.uid, pinnedAt: null);
+      if (value != null) {
+        globals.userSettings.value = value;
+      }
     }
   }
 

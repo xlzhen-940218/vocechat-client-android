@@ -4,9 +4,8 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
-import 'package:vocechat_client/api/lib/user_api.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/dao/init_dao/chat_msg.dart';
 import 'package:vocechat_client/dao/init_dao/dm_info.dart';
@@ -657,31 +656,15 @@ class _ChatsPageState extends State<ChatsPage>
         final chatId = SharedFuncs.getChatId(gid: groupInfoM.gid);
         chatTileMap.addAll({chatId!: tileData});
       } else {
-        await GroupInfoDao().getGroupByGid(gid).then((groupInfoM) async {
-          if (groupInfoM != null) {
-            return;
-          } else {
-            await UserApi()
-                .joinPrivateChannel(magicToken)
-                .then((response) async {
-              if (response.statusCode == 200 && response.data != null) {
-                App.logger.info("joinPrivateChannel success, gid: $gid");
-                await GroupInfoDao()
-                    .addOrUpdate(GroupInfoM.fromGroupInfo(response.data!, true))
-                    .then((value) async {
-                  await prepareChats().then((_) {
-                    final chatId = SharedFuncs.getChatId(gid: gid);
-                    if (chatId != null) {
-                      onTap(chatTileMap[chatId]!);
-                    }
-                  });
-                });
-              } else {
-                App.logger.severe("joinPrivateChannel failed, gid: $gid");
-              }
-            });
-          }
-        });
+        // The server does not provide an API to join a channel with a magic
+        // token anymore. Invitation links are only accepted when signing up.
+        App.logger.warning("Cannot join private channel $gid: "
+            "joining via magic token is not supported by the server.");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text(AppLocalizations.of(context)!
+                  .invalidInvitationLinkWarningContent)));
+        }
       }
     }
   }

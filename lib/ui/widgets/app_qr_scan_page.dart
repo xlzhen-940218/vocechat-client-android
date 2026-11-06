@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:image/image.dart' as image;
 import 'package:mime/mime.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -186,7 +186,7 @@ class _AppQrScanPageState extends State<AppQrScanPage> {
                 image.decodeImage(await File(path).readAsBytes());
             final imageDest = image.copyResize(originalImage!,
                 width: originalImage.width, height: originalImage.height);
-            imageDest.clear(image.ColorRgb8(255, 255, 255));
+            imageDest.clear(image.ColorUint8.rgb(255, 255, 255));
             image.compositeImage(imageDest, originalImage);
 
             await File("$tempPath/temp.jpg")

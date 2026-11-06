@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:vocechat_client/api/lib/dio_util.dart';
-import 'package:vocechat_client/api/models/group/group_info.dart';
 import 'package:vocechat_client/api/models/token/login_response.dart';
 import 'package:vocechat_client/api/models/user/register_request.dart';
 import 'package:vocechat_client/api/models/user/send_reg_magic_token_request.dart';
@@ -12,8 +11,6 @@ import 'package:vocechat_client/api/models/user/user_contact.dart';
 import 'package:vocechat_client/api/models/user/user_info.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/app_consts.dart';
-import 'package:vocechat_client/dao/init_dao/contacts.dart';
-import 'package:vocechat_client/ui/contact/contacts_add_segmented_control.dart';
 
 class UserApi {
   late final String _baseUrl;
@@ -208,7 +205,9 @@ class UserApi {
 
     dio.options.headers["x-properties"] =
         base64.encode(utf8.encode(json.encode(properties)));
-    dio.options.headers["content-type"] = typeAudio;
+    // The server only accepts text/plain, text/markdown, vocechat/file and
+    // vocechat/archive, so audio is sent as a file message.
+    dio.options.headers["content-type"] = typeFile;
 
     Map<String, dynamic> refererHeader = {
       'referer': App.app.chatServerM.fullUrl
@@ -239,7 +238,7 @@ class UserApi {
   }
 
   Future<Response<UserInfo>> getUserByUid(int uid) async {
-    final dio = DioUtil(baseUrl: _baseUrl);
+    final dio = DioUtil.token(baseUrl: _baseUrl);
 
     final res = await dio.get("/$uid");
 
@@ -427,95 +426,6 @@ class UserApi {
         list.add(data);
       }
       newRes.data = list;
-    }
-    return newRes;
-  }
-
-  Future<Response> updateContactStatus(
-      int uid, ContactUpdateAction status) async {
-    final dio = DioUtil.token(baseUrl: _baseUrl, enableRetry: false);
-    dio.options.headers["content-type"] = "application/json";
-
-    return dio.post("/update_contact_status",
-        data: {"action": status.name, "target_uid": uid});
-  }
-
-  Future<Response<UserInfo?>> search(
-      ContactSearchType type, String keyword) async {
-    final dio = DioUtil.token(baseUrl: _baseUrl, enableRetry: false);
-    dio.options.headers["content-type"] = "application/json";
-
-    final res = await dio
-        .post("/search", data: {"search_type": type.name, "keyword": keyword});
-
-    var newRes = Response<UserInfo?>(
-        headers: res.headers,
-        requestOptions: res.requestOptions,
-        isRedirect: res.isRedirect,
-        statusCode: res.statusCode,
-        statusMessage: res.statusMessage,
-        redirects: res.redirects,
-        extra: res.extra);
-
-    if (res.statusCode == 200 && res.data != null) {
-      final userInfo = UserInfo.fromJson(res.data);
-      newRes.data = userInfo;
-    }
-    return newRes;
-  }
-
-  Future<Response> pinChat(
-      {int? uid, int? gid, bool enableRetry = false}) async {
-    final dio = DioUtil.token(baseUrl: _baseUrl, enableRetry: enableRetry);
-    dio.options.headers["content-type"] = "application/json";
-
-    Map reqMap = {};
-    if (uid != null) {
-      reqMap = {"uid": uid};
-    } else if (gid != null) {
-      reqMap = {"gid": gid};
-    }
-
-    reqMap = {"target": reqMap};
-
-    return dio.post("/pin_chat", data: json.encode(reqMap));
-  }
-
-  Future<Response> unpinChat(
-      {int? uid, int? gid, bool enableRetry = false}) async {
-    final dio = DioUtil.token(baseUrl: _baseUrl, enableRetry: enableRetry);
-    dio.options.headers["content-type"] = "application/json";
-
-    Map reqMap = {};
-    if (uid != null) {
-      reqMap = {"uid": uid};
-    } else if (gid != null) {
-      reqMap = {"gid": gid};
-    }
-
-    reqMap = {"target": reqMap};
-
-    return dio.post("/unpin_chat", data: json.encode(reqMap));
-  }
-
-  Future<Response<GroupInfo>> joinPrivateChannel(String magicToken) async {
-    final dio = DioUtil.token(baseUrl: _baseUrl);
-    dio.options.headers["content-type"] = "application/json";
-
-    final res = await dio.post("/join_private",
-        data: json.encode({"magic_token": magicToken}));
-
-    var newRes = Response<GroupInfo>(
-        headers: res.headers,
-        requestOptions: res.requestOptions,
-        isRedirect: res.isRedirect,
-        statusCode: res.statusCode,
-        statusMessage: res.statusMessage,
-        redirects: res.redirects,
-        extra: res.extra);
-
-    if (res.statusCode == 200 && res.data != null) {
-      newRes.data = GroupInfo.fromJson(res.data!);
     }
     return newRes;
   }

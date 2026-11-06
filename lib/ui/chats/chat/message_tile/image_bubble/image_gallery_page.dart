@@ -3,12 +3,15 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
+import 'package:mime/mime.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/app_consts.dart';
 import 'package:vocechat_client/main.dart';
+import 'package:vocechat_client/services/media_saver.dart';
 import 'package:vocechat_client/shared_funcs.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
 import 'package:vocechat_client/ui/app_icons_icons.dart';
@@ -38,7 +41,11 @@ class _ImageGalleryPageState extends State<ImageGalleryPage>
 
   final ValueNotifier<String> imagePath = ValueNotifier("");
 
-  bool _enablePageView = true;
+  final ValueNotifier<bool> _enablePageView = ValueNotifier(true);
+
+  /// Cache the futures so rebuilding the gallery (e.g. while pinching to zoom)
+  /// does not read the image from disk again.
+  final Map<int, Future<SingleImageData?>> _imageFutures = {};
 
   @override
   void initState() {
@@ -52,6 +59,8 @@ class _ImageGalleryPageState extends State<ImageGalleryPage>
 
   @override
   void dispose() {
+    _enablePageView.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -74,17 +83,22 @@ class _ImageGalleryPageState extends State<ImageGalleryPage>
           children: [
             GestureDetector(
               onLongPress: _share,
-              child: PageView.builder(
-                controller: _controller,
-                allowImplicitScrolling: true,
-                itemCount: _imageList.length,
-                physics: _enablePageView
-                    ? (Platform.isIOS
-                        ? BouncingScrollPhysics(
-                            parent: AlwaysScrollableScrollPhysics())
-                        : AlwaysScrollableScrollPhysics())
-                    : const NeverScrollableScrollPhysics(),
-                itemBuilder: _buildItem,
+              child: ValueListenableBuilder<bool>(
+                valueListenable: _enablePageView,
+                builder: (context, enablePageView, _) {
+                  return PageView.builder(
+                    controller: _controller,
+                    allowImplicitScrolling: true,
+                    itemCount: _imageList.length,
+                    physics: enablePageView
+                        ? (Platform.isIOS
+                            ? BouncingScrollPhysics(
+                                parent: AlwaysScrollableScrollPhysics())
+                            : AlwaysScrollableScrollPhysics())
+                        : const NeverScrollableScrollPhysics(),
+                    itemBuilder: _buildItem,
+                  );
+                },
               ),
             ),
             ValueListenableBuilder<bool>(
@@ -97,6 +111,23 @@ class _ImageGalleryPageState extends State<ImageGalleryPage>
                 }
               },
             ),
+            // Always visible: a tap on the image may be consumed by PhotoView
+            // while zoomed, so keep an explicit way to close the preview.
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              left: 8,
+              child: CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: () => Navigator.of(context).maybePop(),
+                  child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                          color: AppColors.grey600,
+                          borderRadius: BorderRadius.circular(18)),
+                      child: const Icon(Icons.close,
+                          size: 20, color: Colors.white))),
+            ),
           ],
         ));
   }
@@ -105,7 +136,7 @@ class _ImageGalleryPageState extends State<ImageGalleryPage>
     final item = _imageList[index];
 
     return FutureBuilder<SingleImageData?>(
-        future: item.getLocalImageFile(),
+        future: _imageFutures[index] ??= item.getLocalImageFile(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done &&
               snapshot.hasData &&
@@ -114,9 +145,10 @@ class _ImageGalleryPageState extends State<ImageGalleryPage>
               initImageFile: snapshot.data!.imageFile,
               singleImageGetters: item,
               onScaleChanged: (scale) {
-                setState(() {
-                  _enablePageView = scale <= 1.0;
-                });
+                final enablePageView = scale <= 1.0;
+                if (_enablePageView.value != enablePageView) {
+                  _enablePageView.value = enablePageView;
+                }
               },
             );
           } else {
@@ -295,10 +327,33 @@ class _ImageGalleryPageState extends State<ImageGalleryPage>
       final name = image.path.split("/").last;
       final imageBytes = await image.readAsBytes();
 
-      final result = await SaverGallery.saveImage(imageBytes,
-          name: name, androidExistNotSave: false);
+      bool success;
 
-      if (result.isSuccess) {
+      if (Platform.isAndroid) {
+        // Save through MediaStore. saver_gallery crashes on newer Android
+        // versions for large files.
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File("${tempDir.path}/$name");
+        await tempFile.writeAsBytes(imageBytes, flush: true);
+
+        success = await MediaSaver.save(
+            file: tempFile,
+            type: MediaSaveType.image,
+            fileName: name,
+            mimeType: lookupMimeType(name) ?? "image/jpeg");
+
+        try {
+          await tempFile.delete();
+        } catch (e) {
+          App.logger.warning(e);
+        }
+      } else {
+        final result = await SaverGallery.saveImage(imageBytes,
+            fileName: name, skipIfExists: false);
+        success = result.isSuccess;
+      }
+
+      if (success) {
         _saveBtnStatus.value = ButtonStatus.success;
         await Future.delayed(Duration(seconds: 2)).then((_) async {
           _saveBtnStatus.value = ButtonStatus.normal;

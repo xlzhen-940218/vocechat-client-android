@@ -8,7 +8,7 @@ import 'package:vocechat_client/dao/org_dao/chat_server.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
 import 'package:vocechat_client/ui/widgets/banner_button.dart';
 import 'package:vocechat_client/ui/widgets/full_width_textfield.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 
 class MagiclinkLogin extends StatefulWidget {
   final ChatServerM chatServer;

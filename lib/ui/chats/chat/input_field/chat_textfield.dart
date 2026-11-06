@@ -26,9 +26,10 @@ import 'package:vocechat_client/ui/chats/chat/message_tile/image_bubble/image_bu
 import 'package:vocechat_client/ui/chats/chat/message_tile/image_bubble/tile_image_bubble.dart';
 import 'package:vocechat_client/ui/widgets/avatar/voce_avatar.dart';
 import 'package:vocechat_client/ui/widgets/avatar/voce_avatar_size.dart';
+import 'package:vocechat_client/ui/widgets/voce_byte_text_input_formatter.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 import 'package:wechat_camera_picker/wechat_camera_picker.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 
 enum InputType { text, voice }
 
@@ -255,7 +256,7 @@ class _ChatTextFieldState extends State<ChatTextField> {
                 maxLines: 5,
                 minLines: 1,
                 maxLength: 2048,
-                inputFormatters: [VoceTextInputFormatter(2048)],
+                inputFormatters: const [VoceByteTextInputFormatter(2048)],
                 maxLengthEnforcement:
                     MaxLengthEnforcement.truncateAfterCompositionEnds,
                 decoration: InputDecoration(
@@ -768,8 +769,8 @@ class _ChatTextFieldState extends State<ChatTextField> {
   }
 
   void _sendFile() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles();
-    final path = result?.files.single.path;
+    final files = await FilePicker.pickFiles();
+    final path = files.isEmpty ? null : files.single.path;
 
     if (path != null && path.isNotEmpty) {
       if (widget.userInfoMNotifier != null) {

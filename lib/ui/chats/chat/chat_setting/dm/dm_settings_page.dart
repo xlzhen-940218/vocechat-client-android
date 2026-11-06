@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/api/lib/user_api.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/app_consts.dart';
@@ -262,36 +262,23 @@ class _DmSettingsPageState extends State<DmSettingsPage> {
   }
 
   Future<bool> _pin() async {
-    try {
-      final res =
-          await UserApi().pinChat(uid: widget.userInfoNotifier.value.uid);
-      if (res.statusCode == 200) {
-        return true;
-      }
-    } catch (e) {
-      App.logger.severe(e);
-    }
-    return false;
+    // Pinned state is kept locally. The server no longer exposes
+    // /user/pin_chat.
+    return true;
   }
 
   Future<bool> _unpin() async {
-    try {
-      final res =
-          await UserApi().unpinChat(uid: widget.userInfoNotifier.value.uid);
-      if (res.statusCode == 200) {
-        return true;
-      }
-    } catch (e) {
-      App.logger.severe(e);
-    }
-
-    return false;
+    // Pinned state is kept locally. The server no longer exposes
+    // /user/unpin_chat.
+    return true;
   }
 
-  Future<bool> _mute({int? expiredAt}) async {
+  Future<bool> _mute() async {
+    // The server expects `expired_in` (seconds) instead of `expired_at`.
+    // Omitting it mutes the DM indefinitely, which is what the toggle does.
     final reqMap = {
       "add_users": [
-        {"uid": widget.userInfoNotifier.value.uid, "expired_at": expiredAt}
+        {"uid": widget.userInfoNotifier.value.uid}
       ]
     };
 
@@ -317,7 +304,7 @@ class _DmSettingsPageState extends State<DmSettingsPage> {
 
   Future<bool> _unMute() async {
     final reqMap = {
-      "remove_mute_users": [widget.userInfoNotifier.value.uid]
+      "remove_users": [widget.userInfoNotifier.value.uid]
     };
 
     try {

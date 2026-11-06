@@ -5,7 +5,7 @@ import 'dart:math';
 import 'package:android_id/android_id.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:vocechat_client/api/lib/admin_login_api.dart';
@@ -644,22 +644,12 @@ class SharedFuncs {
           chatServerM.properties = ChatServerProperties(
               serverName: orgInfo.name,
               description: orgInfo.description ?? "",
-              config: adminLoginRes.data);
-        }
-
-        final adminSysCommonInfo =
-            await AdminSystemApi(serverUrl: fullUrl).getCommonInfo();
-        if (adminSysCommonInfo.statusCode == 200 &&
-            adminSysCommonInfo.data != null) {
-          final commonInfo = adminSysCommonInfo.data!;
-          chatServerM.properties = ChatServerProperties(
-              serverName: orgInfo.name,
-              description: orgInfo.description ?? "",
               config: adminLoginRes.data,
-              commonInfo: commonInfo);
+              commonInfo: chatServerM.properties.commonInfo);
         }
 
         chatServerM.updatedAt = DateTime.now().millisecondsSinceEpoch;
+
         await ChatServerDao.dao.addOrUpdate(chatServerM);
 
         return chatServerM;

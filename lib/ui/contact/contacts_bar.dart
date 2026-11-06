@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/dao/org_dao/chat_server.dart';
 import 'package:vocechat_client/ui/app_colors.dart';

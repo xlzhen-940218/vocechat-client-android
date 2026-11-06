@@ -3,19 +3,21 @@ import 'dart:io';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mime/mime.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/app_consts.dart';
 import 'package:vocechat_client/dao/init_dao/chat_msg.dart';
+import 'package:vocechat_client/services/media_saver.dart';
 import 'package:vocechat_client/shared_funcs.dart';
 import 'package:vocechat_client/ui/app_alert_dialog.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
 import 'package:vocechat_client/ui/app_text_styles.dart';
+import 'package:vocechat_client/ui/chats/chat/message_tile/tile_pages/audio_page.dart';
 import 'package:vocechat_client/ui/chats/chat/message_tile/tile_pages/pdf_page.dart';
 import 'package:vocechat_client/ui/chats/chat/message_tile/tile_pages/video_page.dart';
 
@@ -49,8 +51,6 @@ class _FilePageState extends State<FilePage> {
   File? _localFile;
 
   final ValueNotifier<bool> _enableShare = ValueNotifier(false);
-
-  final downloadsPath = '/storage/emulated/0/Download';
 
   @override
   void initState() {
@@ -213,28 +213,43 @@ class _FilePageState extends State<FilePage> {
   }
 
   Future<bool> _saveToDownloads() async {
-    try {
-      await Permission.storage.request().isGranted.then((value) async {
-        if (value) {
-          // final externalFile = await _localFile!
-          //     .copy("$downloadsPath/${widget.fileName}.${widget.extension}");
+    final file = _localFile;
+    if (file == null) {
+      return false;
+    }
 
-          return true;
-        } else {
-          await showAppAlert(
-              context: context,
-              title: AppLocalizations.of(context)!.permissionRequired,
-              content: AppLocalizations.of(context)!.permissionRequiredDes,
-              actions: [
-                AppAlertDialogAction(
-                    text: AppLocalizations.of(context)!.ok,
-                    action: () => Navigator.of(context).pop())
-              ]);
-        }
-      });
+    final fileName = "${widget.fileName}.${widget.extension}";
+
+    try {
+      final success = await MediaSaver.save(
+          file: file,
+          type: MediaSaveType.downloads,
+          fileName: fileName,
+          mimeType: lookupMimeType(file.path));
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(AppLocalizations.of(context)!.savedSuccessfully),
+            duration: const Duration(seconds: 1)));
+        return true;
+      }
+
+      await showAppAlert(
+          context: context,
+          title: AppLocalizations.of(context)!.permissionRequired,
+          content: AppLocalizations.of(context)!.permissionRequiredDes,
+          actions: [
+            AppAlertDialogAction(
+                text: AppLocalizations.of(context)!.ok,
+                action: () => Navigator.of(context).pop())
+          ]);
     } catch (e) {
       App.logger.severe(e);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(AppLocalizations.of(context)!.saveFailed),
+          duration: const Duration(seconds: 1)));
     }
+
     return false;
   }
 
@@ -317,6 +332,13 @@ class _FilePageState extends State<FilePage> {
         _enableShare.value = true;
         Navigator.of(context).push(MaterialPageRoute(
             builder: (context) => PdfPage(widget.fileName, file)));
+      } else if (_isAudio(widget.extension)) {
+        _status.value = FilePageStatus.open;
+        _enableShare.value = true;
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => AudioPage(
+                fileName: "${widget.fileName}.${widget.extension}",
+                file: file)));
       } else {
         _status.value = FilePageStatus.openWithOtherApp;
         _enableShare.value = false;

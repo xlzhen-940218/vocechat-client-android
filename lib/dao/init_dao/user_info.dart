@@ -2,10 +2,10 @@
 
 import 'dart:convert';
 
-import 'package:azlistview/azlistview.dart';
+import 'package:azlistview_plus/azlistview_plus.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
-import 'package:lpinyin/lpinyin.dart';
+import 'package:pinyin/pinyin.dart';
 import 'package:sqflite/utils/utils.dart';
 import 'package:vocechat_client/api/models/user/contact_info.dart';
 import 'package:vocechat_client/api/models/user/user_info.dart';

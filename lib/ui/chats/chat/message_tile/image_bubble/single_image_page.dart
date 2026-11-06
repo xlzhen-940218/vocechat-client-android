@@ -54,32 +54,41 @@ class _SingleImagePageState extends State<SingleImagePage> {
           return SizedBox(
             width: double.maxFinite,
             child: Center(
-              child: PhotoView(imageProvider: FileImage(imageFile)),
+              child: PhotoView(
+                imageProvider: FileImage(imageFile),
+                filterQuality: FilterQuality.low,
+                minScale: PhotoViewComputedScale.contained,
+                maxScale: PhotoViewComputedScale.contained * 5,
+                initialScale: PhotoViewComputedScale.contained,
+                backgroundDecoration: const BoxDecoration(color: Colors.black),
+                // PhotoView consumes the tap gesture, so an outer
+                // [GestureDetector] never receives it. Handle the tap here to
+                // make "tap to close" work.
+                onTapUp: (context, details, controllerValue) =>
+                    Navigator.of(context).maybePop(),
+              ),
             ),
           );
         });
 
-    return GestureDetector(
-      onTap: () => Navigator.of(context).pop(),
-      child: Container(
-          color: Colors.black,
-          child: Stack(
-            children: [
-              child,
-              ValueListenableBuilder<double>(
-                valueListenable: _progressNotifier,
-                builder: (context, value, child) {
-                  if (value < 0.05 || value >= 1) {
-                    return const SizedBox.shrink();
-                  } else {
-                    return Center(
-                        child: CircularProgressIndicator(value: value));
-                  }
-                },
-              )
-            ],
-          )),
-    );
+    return Container(
+        color: Colors.black,
+        child: Stack(
+          children: [
+            child,
+            ValueListenableBuilder<double>(
+              valueListenable: _progressNotifier,
+              builder: (context, value, child) {
+                if (value < 0.05 || value >= 1) {
+                  return const SizedBox.shrink();
+                } else {
+                  return Center(
+                      child: CircularProgressIndicator(value: value));
+                }
+              },
+            )
+          ],
+        ));
   }
 
   Future<File?> _getServerImageFile(ChatMsgM chatMsgM) async {

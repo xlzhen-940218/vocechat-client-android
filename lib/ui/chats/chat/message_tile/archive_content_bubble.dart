@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/api/models/msg/msg_archive/archive_msg.dart';
 import 'package:vocechat_client/app_consts.dart';
 import 'package:vocechat_client/services/file_handler.dart';

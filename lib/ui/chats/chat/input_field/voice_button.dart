@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:vocechat_client/main.dart';
@@ -45,7 +45,7 @@ class _VoiceButtonState extends State<VoiceButton> {
 
   ValueNotifier<int> recordDuration = ValueNotifier(0);
   Timer? _timer;
-  final record = Record();
+  final record = AudioRecorder();
 
   AudioFilePathInfo? _audioFilePathInfo;
 
@@ -75,6 +75,8 @@ class _VoiceButtonState extends State<VoiceButton> {
 
   @override
   void dispose() {
+    _timer?.cancel();
+    record.dispose();
     super.dispose();
   }
 
@@ -238,10 +240,9 @@ class _VoiceButtonState extends State<VoiceButton> {
       await File(path).create(recursive: true);
 
       await record.start(
-          path: path,
-          encoder: AudioEncoder.aacLc,
-          bitRate: 16000,
-          samplingRate: 8000);
+          const RecordConfig(
+              encoder: AudioEncoder.aacLc, bitRate: 16000, sampleRate: 8000),
+          path: path);
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) async {
         recordDuration.value++;
       });

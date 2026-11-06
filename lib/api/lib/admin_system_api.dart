@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:vocechat_client/api/lib/dio_util.dart';
-import 'package:vocechat_client/api/models/admin/system/sys_common_info.dart';
 import 'package:vocechat_client/api/models/admin/system/sys_org_info.dart';
 import 'package:vocechat_client/app.dart';
 
@@ -71,27 +70,6 @@ class AdminSystemApi {
     return newRes;
   }
 
-  Future<Response<AdminSystemCommonInfo>> getCommonInfo(
-      {bool enableRetry = false}) async {
-    final dio = DioUtil(baseUrl: _baseUrl, enableRetry: enableRetry);
-    final res = await dio.get("/common");
-
-    var newRes = Response<AdminSystemCommonInfo>(
-        headers: res.headers,
-        requestOptions: res.requestOptions,
-        isRedirect: res.isRedirect,
-        statusCode: res.statusCode,
-        statusMessage: res.statusMessage,
-        redirects: res.redirects,
-        extra: res.extra);
-
-    if (res.statusCode == 200 && res.data != null) {
-      final data = AdminSystemCommonInfo.fromJson(res.data!);
-      newRes.data = data;
-    }
-    return newRes;
-  }
-
   Future<Response> uploadOrgLogo(Uint8List avatarBytes) async {
     final dio = DioUtil.token(baseUrl: _baseUrl);
     dio.options.headers["content-type"] = "image/png";
@@ -100,7 +78,7 @@ class AdminSystemApi {
     };
 
     return dio.post(
-      "/orgnization/logo",
+      "/organization/logo",
       // data: jsonEncode(avatarBytes)
       data: Stream.fromIterable(avatarBytes.map((e) => [e])),
       options: Options(

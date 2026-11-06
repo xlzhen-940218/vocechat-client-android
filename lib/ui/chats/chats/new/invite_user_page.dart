@@ -5,7 +5,7 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -254,7 +254,7 @@ class _InviteUserPageState extends State<InviteUserPage> {
       final file = await File('${tempDir.path}/invitation.jpg').create();
       await file.writeAsBytes(pngBytes);
 
-      await Share.shareFiles([file.path]);
+      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
     } catch (e) {
       App.logger.severe(e);
     }

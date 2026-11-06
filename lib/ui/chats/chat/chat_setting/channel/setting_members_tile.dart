@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/dao/init_dao/group_info.dart';
 import 'package:vocechat_client/dao/init_dao/user_info.dart';

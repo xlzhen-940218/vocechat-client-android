@@ -11,7 +11,7 @@ import 'package:vocechat_client/services/file_handler.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
 import 'package:vocechat_client/ui/contact/contact_list.dart';
 import 'package:vocechat_client/ui/widgets/sheet_app_bar.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 
 class OwnerTransferSheet extends StatefulWidget {
   final GroupInfoM groupInfoM;

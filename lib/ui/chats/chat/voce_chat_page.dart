@@ -6,11 +6,10 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/api/lib/group_api.dart';
 import 'package:vocechat_client/api/lib/message_api.dart';
 import 'package:vocechat_client/api/lib/saved_api.dart';
-import 'package:vocechat_client/api/lib/user_api.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/app_consts.dart';
 import 'package:vocechat_client/dao/init_dao/chat_msg.dart';
@@ -325,78 +324,38 @@ class _VoceChatPageState extends State<VoceChatPage>
   Future<void> _unblockContact(int uid) async {
     showBusyDialog();
 
-    await UserApi()
-        .updateContactStatus(uid, ContactUpdateAction.unblock)
-        .then((res) async {
-      if (res.statusCode == 200) {
-        await ContactDao()
-            .updateContact(uid, ContactStatus.none)
-            .then((updatedContactM) async {
-          dismissBusyDialog();
-        });
-      } else {
-        dismissBusyDialog();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.networkError)));
-      }
-    }).onError((error, stackTrace) {
+    try {
+      await ContactDao().updateContact(uid, ContactStatus.none);
+    } catch (error) {
       App.logger.severe(error);
-      dismissBusyDialog();
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.networkError)));
-    });
+    }
+    dismissBusyDialog();
   }
 
   Future<void> _blockContact(int uid) async {
     // Remove contact from contact list.
     // All messages will be kept.
+    // Contact status is kept locally since the server no longer exposes
+    // /user/update_contact_status.
     showBusyDialog();
 
-    await UserApi()
-        .updateContactStatus(uid, ContactUpdateAction.block)
-        .then((res) async {
-      if (res.statusCode == 200) {
-        await ContactDao()
-            .updateContact(uid, ContactStatus.blocked)
-            .then((updatedContactM) async {
-          dismissBusyDialog();
-        });
-      } else {
-        dismissBusyDialog();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.networkError)));
-      }
-    }).onError((error, stackTrace) {
+    try {
+      await ContactDao().updateContact(uid, ContactStatus.blocked);
+    } catch (error) {
       App.logger.severe(error);
-      dismissBusyDialog();
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.networkError)));
-    });
+    }
+    dismissBusyDialog();
   }
 
   Future<void> _addContact(int uid) async {
     showBusyDialog();
 
-    await UserApi()
-        .updateContactStatus(uid, ContactUpdateAction.add)
-        .then((res) async {
-      if (res.statusCode == 200) {
-        await ContactDao()
-            .updateContact(uid, ContactStatus.added)
-            .then((updatedContactM) async {
-          dismissBusyDialog();
-        });
-      } else {
-        dismissBusyDialog();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text(AppLocalizations.of(context)!.networkError)));
-      }
-    }).onError((error, stackTrace) {
+    try {
+      await ContactDao().updateContact(uid, ContactStatus.added);
+    } catch (error) {
       App.logger.severe(error);
-      dismissBusyDialog();
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context)!.networkError)));
-    });
+    }
+    dismissBusyDialog();
   }
 
   Widget _buildSelectionBottomBar() {

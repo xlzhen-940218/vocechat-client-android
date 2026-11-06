@@ -4,7 +4,7 @@ import 'package:vocechat_client/api/lib/user_api.dart';
 import 'package:vocechat_client/dao/init_dao/user_info.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
 import 'package:vocechat_client/ui/app_text_styles.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/ui/contact/contact_detail_page.dart';
 import 'package:vocechat_client/ui/contact/contacts_add_segmented_control.dart';
 
@@ -193,25 +193,73 @@ class _ContactsAddPageState extends State<ContactsAddPage> {
   }
 
   Future<void> _search(String keyword) async {
+    final trimmedKeyword = keyword.trim();
+    if (trimmedKeyword.isEmpty) {
+      return;
+    }
+
     _searchingStatus.value = SearchStatus.searching;
 
-    await UserApi().search(type.value, keyword).then((response) {
-      if (response.statusCode == 200 && response.data != null) {
-        UserInfoDao().getUserByUid(response.data!.uid).then((localUserInfoM) {
-          UserInfoM resultUserInfoM =
-              localUserInfoM ?? UserInfoM.fromUserInfo(response.data!, "");
+    try {
+      UserInfoM? userInfoM;
 
-          _searchingStatus.value = SearchStatus.notSearching;
+      switch (type.value) {
+        case ContactSearchType.id:
+          final uid = int.tryParse(trimmedKeyword);
+          if (uid != null) {
+            userInfoM = await UserInfoDao().getUserByUid(uid);
+            if (userInfoM == null) {
+              // The user is not cached locally. The server still provides
+              // GET /user/:uid, so ask it for the user info.
+              final response = await UserApi().getUserByUid(uid);
+              if (response.statusCode == 200 && response.data != null) {
+                userInfoM = UserInfoM.fromUserInfo(response.data!, "");
+              }
+            }
+          }
+          break;
+        case ContactSearchType.email:
+        case ContactSearchType.name:
+          // The server search endpoint has been removed, so only users
+          // cached locally can be found. The local query is fuzzy, which
+          // means that entering a single letter could match unrelated
+          // accounts, so only accept an exact match (issue #190).
+          final users =
+              await UserInfoDao().getUsersMatched(trimmedKeyword) ?? [];
+          for (final user in users) {
+            final userInfo = user.userInfo;
+            final isExactMatch = type.value == ContactSearchType.email
+                ? (userInfo.email ?? "").toLowerCase() ==
+                    trimmedKeyword.toLowerCase()
+                : userInfo.name.toLowerCase() ==
+                    trimmedKeyword.toLowerCase();
+            if (isExactMatch) {
+              userInfoM = user;
+              break;
+            }
+          }
+          break;
+      }
 
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (context) {
-              return ContactDetailPage(userInfoM: resultUserInfoM);
-            },
-          ));
-        });
-      } else {
+      if (!mounted) return;
+
+      final resultUserInfoM = userInfoM;
+      if (resultUserInfoM == null) {
+        _searchingStatus.value = SearchStatus.noResult;
+        return;
+      }
+
+      _searchingStatus.value = SearchStatus.notSearching;
+
+      Navigator.of(context).push(MaterialPageRoute(
+        builder: (context) {
+          return ContactDetailPage(userInfoM: resultUserInfoM);
+        },
+      ));
+    } catch (_) {
+      if (mounted) {
         _searchingStatus.value = SearchStatus.noResult;
       }
-    });
+    }
   }
 }

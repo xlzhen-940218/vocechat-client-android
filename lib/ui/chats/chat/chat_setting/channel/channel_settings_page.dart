@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/api/lib/group_api.dart';
 import 'package:vocechat_client/api/lib/user_api.dart';
 import 'package:vocechat_client/api/models/admin/system/sys_common_ext_settings.dart';
@@ -742,30 +742,15 @@ class _ChannelSettingsPageState extends State<ChannelSettingsPage> {
   }
 
   Future<bool> _pin() async {
-    try {
-      final res =
-          await UserApi().pinChat(gid: widget.groupInfoNotifier.value.gid);
-      if (res.statusCode == 200) {
-        return true;
-      }
-    } catch (e) {
-      App.logger.severe(e);
-    }
-    return false;
+    // Pinned state is kept locally. The server no longer exposes
+    // /user/pin_chat.
+    return true;
   }
 
   Future<bool> _unpin() async {
-    try {
-      final res =
-          await UserApi().unpinChat(gid: widget.groupInfoNotifier.value.gid);
-      if (res.statusCode == 200) {
-        return true;
-      }
-    } catch (e) {
-      App.logger.severe(e);
-    }
-
-    return false;
+    // Pinned state is kept locally. The server no longer exposes
+    // /user/unpin_chat.
+    return true;
   }
 
   void showNetworkErrorBar() {

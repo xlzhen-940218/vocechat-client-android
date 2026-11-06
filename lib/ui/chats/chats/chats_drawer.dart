@@ -16,7 +16,7 @@ import 'package:vocechat_client/ui/auth/server_account_tile.dart';
 import 'package:vocechat_client/ui/auth/server_page.dart';
 import 'package:vocechat_client/ui/chats/chats/server_account_data.dart';
 import 'package:voce_widgets/voce_widgets.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 
 class ChatsDrawer extends StatefulWidget {
   const ChatsDrawer(

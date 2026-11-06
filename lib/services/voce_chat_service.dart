@@ -4,11 +4,10 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/api/lib/group_api.dart';
 import 'package:vocechat_client/api/lib/resource_api.dart';
 import 'package:vocechat_client/api/lib/user_api.dart';
-import 'package:vocechat_client/api/models/admin/system/sys_common_info.dart';
 import 'package:vocechat_client/api/models/group/group_info.dart';
 import 'package:vocechat_client/api/models/msg/chat_msg.dart';
 import 'package:vocechat_client/api/models/msg/msg_archive/pinned_msg.dart';
@@ -27,7 +26,6 @@ import 'package:vocechat_client/dao/init_dao/properties_models/user_settings/use
 import 'package:vocechat_client/dao/init_dao/reaction.dart';
 import 'package:vocechat_client/dao/init_dao/user_info.dart';
 import 'package:vocechat_client/dao/init_dao/user_settings.dart';
-import 'package:vocechat_client/dao/org_dao/properties_models/chat_server_properties.dart';
 import 'package:vocechat_client/dao/org_dao/userdb.dart';
 import 'package:vocechat_client/globals.dart';
 import 'package:vocechat_client/globals.dart' as globals;
@@ -105,18 +103,47 @@ class VoceChatService {
   final Map<int, ReactionM> reactionMap = {};
 
   Future<void> prePersistentConnectionInits() async {
-    final res = await UserApi().getUserContacts();
+    try {
+      final res = await UserApi().getUserContacts();
 
-    if (res.statusCode == 200 && res.data != null) {
-      final rawList = res.data!;
-      final contactList = rawList.map((e) {
-        return ContactM.fromContactInfo(e.targetUid, e.contactInfo.status,
-            e.contactInfo.createdAt, e.contactInfo.updatedAt);
-      }).toList();
+      if (res.statusCode == 200 && res.data != null) {
+        final rawList = res.data!;
+        final contactList = rawList.map((e) {
+          return ContactM.fromContactInfo(e.targetUid, e.contactInfo.status,
+              e.contactInfo.createdAt, e.contactInfo.updatedAt);
+        }).toList();
 
-      await ContactDao().batchAdd(contactList);
+        await ContactDao().batchAdd(contactList);
+        App.logger.info("Contact list initialized. total: ${res.data?.length}");
+        return;
+      }
+      App.logger.warning(
+          "Failed to initialize contact list. status: ${res.statusCode}");
+    } catch (e) {
+      // The server no longer exposes /user/contacts, so this request is
+      // expected to fail. Fall back to local data instead of aborting the
+      // whole initialization.
+      App.logger.warning("Failed to initialize contact list. $e");
     }
-    App.logger.info("Contact list initialized. total: ${res.data?.length}");
+
+    await _deriveContactsFromLocalDms();
+  }
+
+  /// Contact verification is not available on the server anymore.
+  /// Users we have a DM with are treated as contacts, so that the contact
+  /// page and the contact-related UI keep working.
+  Future<void> _deriveContactsFromLocalDms() async {
+    final dmList = await DmInfoDao().getDmList();
+    if (dmList == null || dmList.isEmpty) return;
+
+    final contactDao = ContactDao();
+    for (final dm in dmList) {
+      final contact = await contactDao.getContact(dm.dmUid);
+      if (contact == null) {
+        await contactDao.updateContact(dm.dmUid, ContactStatus.added);
+      }
+    }
+    App.logger.info("Contacts derived from DMs. total: ${dmList.length}");
   }
 
   Future<void> initPersistentConnection() async {
@@ -437,11 +464,9 @@ class VoceChatService {
         case groupChangedEvent:
         case joinedGroupEvent:
         case kickFromGroupEvent:
-        case messageClearedEvent:
         case pinnedMessageUpdatedEvent:
         case readyEvent:
         case relatedGroupsEvent:
-        case serverConfigChangedEvent:
         case userJoinedGroupEvent:
         case userLeavedGroupEvent:
         case usersLogEvent:
@@ -481,9 +506,6 @@ class VoceChatService {
         case kickFromGroupEvent:
           await _handleKickFromGroup(map);
           break;
-        case messageClearedEvent:
-          await _handleMessageCleared(map);
-          break;
         case pinnedMessageUpdatedEvent:
           await _handlePinnedMessageUpdated(map);
           break;
@@ -492,9 +514,6 @@ class VoceChatService {
           break;
         case relatedGroupsEvent:
           await _handleRelatedGroups(map);
-          break;
-        case serverConfigChangedEvent:
-          await _handleServerConfigChanged(map);
           break;
         case userJoinedGroupEvent:
           await _handleUserJoinedGroup(map);
@@ -697,36 +716,6 @@ class VoceChatService {
     }
   }
 
-  Future<void> _handleMessageCleared(Map<String, dynamic> map) async {
-    assert(map["type"] == messageClearedEvent);
-
-    try {
-      final latestDeletedMid = map["latest_deleted_mid"] as int;
-
-      final context = navigatorKey.currentContext;
-      if (context != null) {
-        await showAppAlert(
-            context: context,
-            title: AppLocalizations.of(context)!.messageClearTitle,
-            content: AppLocalizations.of(context)!.messageClearDes,
-            actions: [
-              AppAlertDialogAction(
-                  text: AppLocalizations.of(context)!.ok,
-                  action: () {
-                    Navigator.of(context).pop();
-                  })
-            ]).then((_) async {
-          await ChatMsgDao().clearChatMsgTable(beforeMid: latestDeletedMid);
-          await UserDbMDao.dao
-              .updateMaxMid(App.app.userDb!.id, latestDeletedMid);
-          fireReady(clearAll: true);
-        });
-      }
-    } catch (e) {
-      App.logger.severe(e);
-    }
-  }
-
   Future<void> _handlePinnedMessageUpdated(Map<String, dynamic> map) async {
     assert(map["type"] == pinnedMessageUpdatedEvent);
 
@@ -899,81 +888,6 @@ class VoceChatService {
           });
         }
       }
-    } catch (e) {
-      App.logger.severe(e);
-    }
-  }
-
-  Future<void> _handleServerConfigChanged(Map<String, dynamic> map) async {
-    assert(map['type'] == serverConfigChangedEvent);
-
-    String? organizationName;
-    String? organizationDescription;
-    String? organizationLogo;
-    bool? showUserOnlineStatus;
-    bool? contactVerificationEnable;
-    String? chatLayoutMode;
-    String? maxFileExpiryMode;
-    bool? onlyAdminCanCreateGroup;
-    String? extSettings;
-
-    try {
-      organizationName = map["organization_name"] as String?;
-      organizationDescription = map["organization_description"] as String?;
-      organizationLogo = map["organization_logo"] as String?;
-      showUserOnlineStatus = map["show_user_online_status"] as bool?;
-      contactVerificationEnable = map["contact_verification_enable"] as bool?;
-      chatLayoutMode = map["chat_layout_mode"] as String?;
-      maxFileExpiryMode = map["max_file_expiry_mode"] as String?;
-      onlyAdminCanCreateGroup = map["only_admin_can_create_group"] as bool?;
-      extSettings = map["ext_settings"] as String?;
-
-      // This server id is not the backend one, but the id of local database.
-      final serverId = App.app.userDb?.chatServerId;
-      if (serverId == null) return;
-
-      ChatServerM? chatServerM =
-          await ChatServerDao.dao.getServerById(serverId);
-      if (chatServerM == null) return;
-
-      // Update organization info.
-      try {
-        if (organizationLogo != null) {
-          final logoRes = await ResourceApi().getOrgLogo();
-          if (logoRes.statusCode == 200 && logoRes.data != null) {
-            chatServerM.logo = logoRes.data!;
-          }
-        }
-      } catch (e) {
-        App.logger.severe(e);
-      }
-
-      ChatServerProperties properties = chatServerM.properties;
-
-      properties.serverName = organizationName ?? properties.serverName;
-      properties.description =
-          organizationDescription ?? properties.description;
-
-      final newCommonInfo = AdminSystemCommonInfo(
-        showUserOnlineStatus:
-            showUserOnlineStatus ?? properties.commonInfo?.showUserOnlineStatus,
-        contactVerificationEnable: contactVerificationEnable ??
-            properties.commonInfo?.contactVerificationEnable,
-        chatLayoutMode: chatLayoutMode ?? properties.commonInfo?.chatLayoutMode,
-        maxFileExpiryMode:
-            maxFileExpiryMode ?? properties.commonInfo?.maxFileExpiryMode,
-        onlyAdminCanCreateGroup: onlyAdminCanCreateGroup ??
-            properties.commonInfo?.onlyAdminCanCreateGroup,
-        extSettings: extSettings ?? properties.commonInfo?.extSettings,
-      );
-
-      properties.commonInfo = newCommonInfo;
-      chatServerM.properties = properties;
-
-      await ChatServerDao.dao.addOrUpdate(chatServerM).then((value) {
-        App.app.chatServerM = chatServerM;
-        fireChatServer(value);
-      });
     } catch (e) {
       App.logger.severe(e);
     }

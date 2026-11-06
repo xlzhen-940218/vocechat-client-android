@@ -4,7 +4,7 @@ import 'package:vocechat_client/api/lib/user_api.dart';
 import 'package:vocechat_client/app_consts.dart';
 import 'package:vocechat_client/extensions.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/ui/app_text_styles.dart';
 import 'package:voce_widgets/voce_widgets.dart';
 

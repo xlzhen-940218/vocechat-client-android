@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/api/lib/dio_retry/options.dart';
 import 'package:vocechat_client/api/lib/dio_retry/retry_interceptor.dart';
 import 'package:vocechat_client/app.dart';

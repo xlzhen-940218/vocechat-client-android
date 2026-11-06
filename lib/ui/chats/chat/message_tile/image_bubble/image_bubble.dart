@@ -2,11 +2,10 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/ui/chats/chat/message_tile/image_bubble/image_gallery_page.dart';
 import 'package:vocechat_client/ui/chats/chat/message_tile/image_bubble/single_image_item.dart';
 import 'package:vocechat_client/ui/chats/chat/message_tile/text_bubble.dart';
-import 'package:vocechat_client/ui/chats/chat/voce_msg_tile/empty_data_placeholder.dart';
 
 class VoceImageBubble extends StatefulWidget {
   // final ChatMsgM chatMsgM;
@@ -44,18 +43,30 @@ class _VoceImageBubbleState extends State<VoceImageBubble> {
             : GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
-                  showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      builder: (context) => FutureBuilder<ImageGalleryData?>(
-                          future: widget.getImageList(),
-                          builder: (context, snapshot) {
-                            if (snapshot.hasData) {
-                              return ImageGalleryPage(data: snapshot.data!);
-                            } else {
-                              return const EmptyDataPlaceholder();
-                            }
-                          }));
+                  // Push a full screen route instead of a modal bottom sheet so
+                  // that the system back button always closes the preview
+                  // without also popping the chat page.
+                  Navigator.of(context).push(PageRouteBuilder<void>(
+                    opaque: true,
+                    transitionDuration: const Duration(milliseconds: 200),
+                    reverseTransitionDuration: const Duration(milliseconds: 160),
+                    pageBuilder: (context, animation, secondaryAnimation) =>
+                        FutureBuilder<ImageGalleryData?>(
+                            future: widget.getImageList(),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                return ImageGalleryPage(data: snapshot.data!);
+                              } else {
+                                return Container(
+                                    color: Colors.black,
+                                    child: const Center(
+                                        child: CupertinoActivityIndicator()));
+                              }
+                            }),
+                    transitionsBuilder:
+                        (context, animation, secondaryAnimation, child) =>
+                            FadeTransition(opacity: animation, child: child),
+                  ));
                 },
                 child: Image.file(widget.imageFile!, fit: BoxFit.contain,
                     frameBuilder:

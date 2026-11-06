@@ -5,7 +5,7 @@ import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -206,7 +206,9 @@ class _ChannelInvitePageState extends State<ChannelInvitePage> {
 
     try {
       final groupApi = GroupApi();
-      final res = await groupApi.getInvitePrivateMagicLink(widget.gid,
+      // The server only provides a registration magic link for channel
+      // invitations now. /group/create_invite_private_magic_link is gone.
+      final res = await groupApi.getRegMagicLink(gid: widget.gid,
           expiredIn: expiredIn * 3600);
 
       if (res.statusCode == 200) {
@@ -269,7 +271,7 @@ class _ChannelInvitePageState extends State<ChannelInvitePage> {
       final file = await File('${tempDir.path}/invitation.jpg').create();
       await file.writeAsBytes(pngBytes);
 
-      await Share.shareFiles([file.path]);
+      await SharePlus.instance.share(ShareParams(files: [XFile(file.path)]));
     } catch (e) {
       App.logger.severe(e);
     }

@@ -3,12 +3,14 @@ import 'dart:io';
 import 'package:chewie/chewie.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:mime/mime.dart';
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/app_consts.dart';
+import 'package:vocechat_client/services/media_saver.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 
 class VideoPage extends StatefulWidget {
   final ChewieController chewieController;
@@ -93,10 +95,22 @@ class _VideoPageState extends State<VideoPage>
         onPressed: () async {
           try {
             showSnackBar(ButtonStatus.inProgress);
+
+            if (Platform.isAndroid) {
+              final success = await MediaSaver.save(
+                  file: widget.file,
+                  type: MediaSaveType.video,
+                  mimeType:
+                      lookupMimeType(widget.file.path) ?? "video/mp4");
+              showSnackBar(
+                  success ? ButtonStatus.success : ButtonStatus.error);
+              return;
+            }
+
             await SaverGallery.saveFile(
-                    file: widget.file.path,
-                    name: widget.file.path.split("/").last,
-                    androidExistNotSave: false)
+                    filePath: widget.file.path,
+                    fileName: widget.file.path.split("/").last,
+                    skipIfExists: false)
                 .then((value) {
               if (value.isSuccess) {
                 showSnackBar(ButtonStatus.success);
@@ -106,6 +120,7 @@ class _VideoPageState extends State<VideoPage>
             });
           } catch (e) {
             App.logger.severe(e);
+            showSnackBar(ButtonStatus.error);
           }
         },
         child: Row(

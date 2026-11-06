@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:async/async.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:voce_widgets/voce_widgets.dart';
 import 'package:vocechat_client/api/lib/user_api.dart';
 import 'package:vocechat_client/api/models/user/register_request.dart';

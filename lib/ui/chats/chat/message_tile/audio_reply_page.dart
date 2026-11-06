@@ -9,7 +9,7 @@
 // import 'package:vocechat_client/services/audio_service.dart';
 // import 'package:vocechat_client/ui/app_colors.dart';
 // import 'package:vocechat_client/ui/chats/chat/message_tile/audio_bubble.dart';
-// import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+// import 'package:vocechat_client/l10n/app_localizations.dart';
 
 // class AudioReplyPage extends StatefulWidget {
 //   const AudioReplyPage({

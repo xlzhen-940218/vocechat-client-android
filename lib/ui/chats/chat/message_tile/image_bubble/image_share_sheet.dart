@@ -2,9 +2,12 @@ import 'dart:io';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:mime/mime.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:saver_gallery/saver_gallery.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:vocechat_client/app.dart';
+import 'package:vocechat_client/services/media_saver.dart';
 import 'package:vocechat_client/services/voce_send_service.dart';
 import 'package:vocechat_client/ui/app_alert_dialog.dart';
 import 'package:vocechat_client/app_consts.dart';
@@ -15,7 +18,7 @@ import 'package:vocechat_client/dao/init_dao/group_info.dart';
 import 'package:vocechat_client/dao/init_dao/user_info.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
 import 'package:vocechat_client/ui/app_icons_icons.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/ui/widgets/avatar/voce_avatar_size.dart';
 
 import 'package:vocechat_client/ui/widgets/avatar/voce_channel_avatar.dart';
@@ -210,10 +213,33 @@ class _ImageShareSheetState extends State<ImageShareSheet> {
       final name = image.path.split("/").last;
       final imageBytes = await image.readAsBytes();
 
-      final result = await SaverGallery.saveImage(imageBytes,
-          name: name, androidExistNotSave: false);
+      bool success;
 
-      if (result.isSuccess) {
+      if (Platform.isAndroid) {
+        // Save through MediaStore; saver_gallery crashes on newer Android
+        // versions.
+        final tempDir = await getTemporaryDirectory();
+        final tempFile = File("${tempDir.path}/$name");
+        await tempFile.writeAsBytes(imageBytes, flush: true);
+
+        success = await MediaSaver.save(
+            file: tempFile,
+            type: MediaSaveType.image,
+            fileName: name,
+            mimeType: lookupMimeType(name) ?? "image/jpeg");
+
+        try {
+          await tempFile.delete();
+        } catch (e) {
+          App.logger.warning(e);
+        }
+      } else {
+        final result = await SaverGallery.saveImage(imageBytes,
+            fileName: name, skipIfExists: false);
+        success = result.isSuccess;
+      }
+
+      if (success) {
         _saveBtnStatus.value = ButtonStatus.success;
         await Future.delayed(Duration(seconds: 2)).then((_) async {
           _saveBtnStatus.value = ButtonStatus.normal;

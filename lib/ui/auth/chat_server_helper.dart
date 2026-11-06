@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 import 'package:vocechat_client/api/lib/admin_system_api.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/dao/org_dao/chat_server.dart';

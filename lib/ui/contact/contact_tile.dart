@@ -6,7 +6,7 @@ import 'package:vocechat_client/ui/app_text_styles.dart';
 import 'package:vocechat_client/ui/widgets/avatar/voce_avatar_size.dart';
 import 'package:vocechat_client/ui/widgets/avatar/voce_user_avatar.dart';
 
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 
 class ContactTile extends StatefulWidget {
   final UserInfoM userInfoM;

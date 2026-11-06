@@ -190,7 +190,9 @@ class VoceSendService {
         // TODO: change to save File instead of bytes.
         final thumbBytes =
             await FlutterImageCompress.compressWithList(fileBytes, quality: 25);
-        uploadBytes = thumbBytes;
+        // Only the locally cached preview is compressed; the original bytes
+        // are uploaded so that other clients receive the full resolution
+        // image (issue #179).
         await FileHandler.singleton
             .saveImageThumb(chatId, thumbBytes, localMid, filename);
       }
@@ -259,7 +261,7 @@ class VoceSendService {
 
     final detail = MsgNormal(
         properties: properties,
-        contentType: typeAudio,
+        contentType: typeFile,
         expiresIn: expiresIn,
         content: filename);
 
@@ -469,7 +471,9 @@ class VoceSendService {
         // TODO: change to save File instead of bytes.
         final thumbBytes =
             await FlutterImageCompress.compressWithList(fileBytes, quality: 25);
-        uploadBytes = thumbBytes;
+        // Only the locally cached preview is compressed; the original bytes
+        // are uploaded so that other clients receive the full resolution
+        // image (issue #179).
         await FileHandler.singleton
             .saveImageThumb(chatId, thumbBytes, localMid, filename);
       }
@@ -537,7 +541,7 @@ class VoceSendService {
 
     final detail = MsgNormal(
         properties: properties,
-        contentType: typeAudio,
+        contentType: typeFile,
         expiresIn: expiresIn,
         content: filename);
 

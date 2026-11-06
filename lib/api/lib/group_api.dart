@@ -255,7 +255,9 @@ class GroupApi {
 
     dio.options.headers["x-properties"] =
         base64.encode(utf8.encode(json.encode(properties)));
-    dio.options.headers["content-type"] = typeAudio;
+    // The server only accepts text/plain, text/markdown, vocechat/file and
+    // vocechat/archive, so audio is sent as a file message.
+    dio.options.headers["content-type"] = typeFile;
 
     final data = {'path': path};
 
@@ -275,36 +277,6 @@ class GroupApi {
       newRes.data = data;
     }
     return newRes;
-  }
-
-  Future<Response> getInvitePrivateMagicLink(int gid,
-      {int? expiredIn = 172800, int? maxTimes = 1}) async {
-    final dio = DioUtil.token(baseUrl: _baseUrl);
-
-    String url = "/create_invite_private_magic_link";
-
-    List<String> paramList = [];
-
-    paramList.add("gid=$gid");
-
-    if (expiredIn != null) {
-      paramList.add("expired_in=$expiredIn");
-    }
-
-    if (maxTimes != null) {
-      paramList.add("max_times=$maxTimes");
-    }
-
-    if (paramList.isNotEmpty) {
-      final str = paramList.join("&");
-      url += "?$str";
-    }
-
-    var uri = Uri.parse(_baseUrl + url);
-    dio.options.headers["Authority"] = "${uri.authority}:${uri.port}";
-    dio.options.headers["Host"] = uri.host;
-
-    return dio.get(url);
   }
 
   Future<Response<String>> uploadGroupAvatar(

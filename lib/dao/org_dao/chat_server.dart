@@ -31,12 +31,20 @@ class ChatServerM with M {
 
   String _properties = "";
 
+  /// The host as it must appear inside a URL. IPv6 literals need brackets.
+  String get _urlForUrl {
+    if (url.contains(':') && !url.startsWith('[')) {
+      return '[$url]';
+    }
+    return url;
+  }
+
   String get serverUnderscoreName {
-    return url.replaceAll('.', '_');
+    return url.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_');
   }
 
   String get fullUrl {
-    String url0 = '$url:$port';
+    String url0 = '$_urlForUrl:$port';
     if (tls == 0) {
       url0 = 'http://$url0';
     } else {
@@ -46,7 +54,7 @@ class ChatServerM with M {
   }
 
   String get fullUrlWithoutPort {
-    String url0 = url;
+    String url0 = _urlForUrl;
     if (tls == 0) {
       url0 = 'http://$url0';
     } else {
@@ -127,15 +135,26 @@ class ChatServerM with M {
 
   bool setByUrl(String url) {
     try {
-      Uri uri = Uri.parse(url);
+      String input = url.trim();
+      // Allow entering a server address without a scheme, e.g. "1.2.3.4:3000"
+      // or "[2001:db8::1]:3000" (issue #195).
+      if (!input.contains('://')) {
+        input = 'https://$input';
+      }
+
+      Uri uri = Uri.parse(input);
       if (uri.host.isEmpty) {
         return false;
       }
-      // name = url;
-      this.url = uri.host;
-      if (url.isEmpty) {
-        url = '127.0.0.1';
+
+      String host = uri.host;
+      // Uri keeps the brackets around IPv6 literals; store the bare address
+      // and add the brackets back when building URLs.
+      if (host.startsWith('[') && host.endsWith(']')) {
+        host = host.substring(1, host.length - 1);
       }
+
+      this.url = host;
       port = uri.port;
       if (uri.scheme == 'https') {
         tls = 1;

@@ -1,7 +1,7 @@
 import 'dart:io';
 
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/dao/init_dao/chat_msg.dart';
 import 'package:vocechat_client/services/file_handler/voce_file_handler.dart';
@@ -9,6 +9,10 @@ import 'package:vocechat_client/shared_funcs.dart';
 
 class VideoThumbHandler extends VoceFileHandler {
   static const String _pathStr = "video_thumb";
+
+  // The discontinued `video_thumbnail` plugin is replaced by a native
+  // MediaMetadataRetriever implementation in MainActivity.
+  static const MethodChannel _channel = MethodChannel('vocechat/video_thumbnail');
 
   /// Constructor
   ///
@@ -61,13 +65,14 @@ class VideoThumbHandler extends VoceFileHandler {
           chatId: chatId, dbName: dbName);
       await File(path).create(recursive: true);
 
-      final fileName = await VideoThumbnail.thumbnailFile(
-        video: fileUrl,
-        thumbnailPath: path,
-        imageFormat: ImageFormat.JPEG,
-        maxHeight:
-            64, // specify the height of the thumbnail, let the width auto-scaled to keep the source aspect ratio
-        quality: 75,
+      final fileName = await _channel.invokeMethod<String>(
+        'generateThumbnail',
+        {
+          'videoUrl': fileUrl,
+          'path': path,
+          'maxHeight': 64,
+          'quality': 75,
+        },
       );
 
       App.logger.info("Thumb fetched from server. filaName: $fileName");

@@ -1,8 +1,7 @@
 import 'dart:async';
 
-import 'package:azlistview/azlistview.dart';
+import 'package:azlistview_plus/azlistview_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:vocechat_client/app.dart';
 import 'package:vocechat_client/dao/init_dao/contacts.dart';
@@ -132,7 +131,10 @@ class _ContactListState extends State<ContactList>
                 borderRadius: BorderRadius.circular(10)),
             child: Center(
               child: SvgPicture.asset("assets/images/owner.svg",
-                  width: 14, height: 12, color: AppColors.violet100),
+                  width: 14,
+                  height: 12,
+                  colorFilter: ColorFilter.mode(
+                      AppColors.violet100, BlendMode.srcIn)),
             ),
           );
         }
@@ -202,7 +204,7 @@ class _ContactListState extends State<ContactList>
       },
       indexBarMargin: const EdgeInsets.all(10),
       indexBarOptions: const IndexBarOptions(
-          hapticFeedback: HapticFeedback.mediumImpact,
+          hapticFeedback: true,
           indexHintAlignment: Alignment.centerRight,
           needRebuild: true),
     );

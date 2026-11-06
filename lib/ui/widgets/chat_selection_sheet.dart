@@ -11,7 +11,7 @@ import 'package:vocechat_client/ui/app_colors.dart';
 import 'package:vocechat_client/ui/app_icons_icons.dart';
 import 'package:vocechat_client/ui/contact/contact_list.dart';
 import 'package:vocechat_client/ui/widgets/sheet_app_bar.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 
 class ChatSelectionSheet extends StatefulWidget {
   const ChatSelectionSheet(

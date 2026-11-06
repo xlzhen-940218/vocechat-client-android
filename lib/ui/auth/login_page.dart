@@ -12,7 +12,7 @@ import 'package:vocechat_client/dao/org_dao/chat_server.dart';
 import 'package:vocechat_client/ui/app_colors.dart';
 import 'package:vocechat_client/ui/auth/password_register_page.dart';
 import 'package:vocechat_client/ui/widgets/banner_button.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:vocechat_client/l10n/app_localizations.dart';
 
 class LoginPage extends StatefulWidget {
   // static const route = '/auth/login';

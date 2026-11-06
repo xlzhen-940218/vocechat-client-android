@@ -11,8 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import kotlinx.coroutines.launch
 
@@ -24,6 +27,7 @@ fun CreateChannelDialog(
     onCreated: (Int) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var name by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var isPublic by remember { mutableStateOf(true) }
@@ -43,7 +47,7 @@ fun CreateChannelDialog(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "新建频道",
+                text = stringResource(R.string.create_channel_title),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
@@ -52,8 +56,8 @@ fun CreateChannelDialog(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it; errorMessage = null },
-                label = { Text("频道名称") },
-                placeholder = { Text("例如: general, 开发交流") },
+                label = { Text(stringResource(R.string.create_channel_name_label)) },
+                placeholder = { Text(stringResource(R.string.create_channel_name_placeholder)) },
                 leadingIcon = {
                     Icon(
                         if (isPublic) Icons.Default.Tag else Icons.Default.Lock,
@@ -68,7 +72,7 @@ fun CreateChannelDialog(
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("频道描述 (可选)") },
+                label = { Text(stringResource(R.string.create_channel_description_label)) },
                 leadingIcon = {
                     Icon(Icons.Default.Description, contentDescription = null)
                 },
@@ -85,12 +89,17 @@ fun CreateChannelDialog(
             ) {
                 Column {
                     Text(
-                        text = if (isPublic) "公开频道" else "私有频道",
+                        text = stringResource(
+                            if (isPublic) R.string.create_channel_public else R.string.create_channel_private
+                        ),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = if (isPublic) "任何服务器成员均可查看并加入" else "仅受邀成员可见并加入",
+                        text = stringResource(
+                            if (isPublic) R.string.create_channel_public_desc
+                            else R.string.create_channel_private_desc
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -112,7 +121,7 @@ fun CreateChannelDialog(
             Button(
                 onClick = {
                     if (name.isBlank()) {
-                        errorMessage = "频道名称不能为空"
+                        errorMessage = context.getString(R.string.create_channel_error_empty_name)
                         return@Button
                     }
                     isLoading = true
@@ -127,7 +136,8 @@ fun CreateChannelDialog(
                         result.onSuccess { gid ->
                             onCreated(gid)
                         }.onFailure { err ->
-                            errorMessage = "创建失败: ${err.localizedMessage ?: "未知错误"}"
+                            val detail = err.localizedMessage ?: context.getString(R.string.create_channel_unknown_error)
+                            errorMessage = context.getString(R.string.create_channel_error_failed, detail)
                         }
                     }
                 },
@@ -144,7 +154,7 @@ fun CreateChannelDialog(
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("创 建")
+                    Text(stringResource(R.string.create_channel_create))
                 }
             }
         }

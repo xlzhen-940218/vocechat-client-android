@@ -2,6 +2,7 @@ package com.privoce.vocechatclient.data.repository
 
 import android.content.Context
 import android.util.Log
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.api.SseEvent
 import com.privoce.vocechatclient.data.api.VoceApiClient
 import com.privoce.vocechatclient.data.api.VoceSseClient
@@ -25,6 +26,7 @@ enum class ConnectionStatus {
 
 class VoceChatRepository(context: Context) {
     private val TAG = "VoceChatRepository"
+    private val appContext = context.applicationContext
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     val preferences = AppPreferences(context)
 
@@ -32,6 +34,7 @@ class VoceChatRepository(context: Context) {
         baseUrl = preferences.serverUrl,
         token = preferences.token,
         refreshToken = preferences.refreshToken,
+        context = appContext,
         onTokenRefreshed = { newToken, newRefresh ->
             preferences.token = newToken
             preferences.refreshToken = newRefresh
@@ -66,7 +69,7 @@ class VoceChatRepository(context: Context) {
     init {
         if (preferences.isLoggedIn) {
             val uid = preferences.currentUserId
-            _currentUser.value = UserInfo(uid = uid, name = "User $uid")
+            _currentUser.value = UserInfo(uid = uid, name = appContext.getString(R.string.fallback_user_name, uid))
             scope.launch {
                 if (!preferences.refreshToken.isNullOrBlank()) {
                     apiClient.renewToken().onSuccess { res ->
@@ -388,7 +391,7 @@ class VoceChatRepository(context: Context) {
                 fromUid = preferences.currentUserId,
                 gid = if (chatType == "channel") id else null,
                 dmUid = if (chatType == "dm") id else null,
-                content = "正在上传…",
+                content = appContext.getString(R.string.state_uploading),
                 contentType = "text/plain",
                 status = MessageStatus.SENDING,
                 properties = mapOf("name" to displayName)
@@ -448,7 +451,7 @@ class VoceChatRepository(context: Context) {
         val updatedMap = _messages.value.toMutableMap()
         val updatedList = (updatedMap[key] ?: emptyList()).map {
             if (it.localMid == localMid) {
-                it.copy(content = "发送失败：$displayName", status = MessageStatus.FAILED)
+                it.copy(content = appContext.getString(R.string.state_send_failed, displayName), status = MessageStatus.FAILED)
             } else it
         }
         updatedMap[key] = updatedList

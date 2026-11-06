@@ -14,10 +14,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.models.UserInfo
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import com.privoce.vocechatclient.ui.components.EmptyStateView
@@ -49,14 +51,14 @@ fun ContactsTab(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("搜索联系人...", fontSize = 14.sp) },
+            placeholder = { Text(stringResource(R.string.contacts_search_placeholder), fontSize = 14.sp) },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Clear, contentDescription = "清除")
+                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
                     }
                 }
             },
@@ -82,20 +84,23 @@ fun ContactsTab(
             FilterChip(
                 selected = !onlineOnly,
                 onClick = { onlineOnly = false },
-                label = { Text("全部 (${users.size})") }
+                label = { Text(stringResource(R.string.contacts_filter_all, users.size)) }
             )
             FilterChip(
                 selected = onlineOnly,
                 onClick = { onlineOnly = true },
-                label = { Text("在线 (${users.count { it.online }})") }
+                label = { Text(stringResource(R.string.contacts_filter_online, users.count { it.online })) }
             )
         }
 
         if (filteredUsers.isEmpty()) {
             EmptyStateView(
                 icon = Icons.Default.PeopleOutline,
-                title = "未找到联系人",
-                description = if (searchQuery.isNotEmpty()) "尝试其他关键词搜索" else "当前服务器无其他成员",
+                title = stringResource(R.string.contacts_empty_title),
+                description = stringResource(
+                    if (searchQuery.isNotEmpty()) R.string.contacts_empty_search_hint
+                    else R.string.contacts_empty_no_members
+                ),
                 modifier = Modifier.weight(1f)
             )
         } else {
@@ -144,7 +149,7 @@ fun ContactsTab(
                                             shape = RoundedCornerShape(4.dp)
                                         ) {
                                             Text(
-                                                text = "管理员",
+                                                text = stringResource(R.string.action_admin),
                                                 color = MaterialTheme.colorScheme.onTertiaryContainer,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
@@ -153,7 +158,7 @@ fun ContactsTab(
                                     }
                                 }
                                 Text(
-                                    text = user.email ?: "UID: ${user.uid}",
+                                    text = user.email ?: stringResource(R.string.fallback_uid, user.uid),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,

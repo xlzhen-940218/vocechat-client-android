@@ -16,7 +16,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -24,6 +26,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import kotlinx.coroutines.launch
 
@@ -36,6 +39,7 @@ fun LoginScreen(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val focusManager = LocalFocusManager.current
 
     var selectedTab by remember { mutableIntStateOf(0) } // 0: Password, 1: Magic Link
@@ -50,7 +54,7 @@ fun LoginScreen(
     fun doLogin() {
         if (selectedTab == 0) {
             if (email.isBlank() || password.isBlank()) {
-                errorMessage = "请输入邮箱和密码"
+                errorMessage = context.getString(R.string.login_error_missing_credentials)
                 return
             }
 
@@ -63,12 +67,12 @@ fun LoginScreen(
                 result.onSuccess {
                     onLoginSuccess()
                 }.onFailure { err ->
-                    errorMessage = err.localizedMessage ?: "登录失败，请检查账户或密码"
+                    errorMessage = err.localizedMessage ?: context.getString(R.string.login_error_failed)
                 }
             }
         } else {
             if (email.isBlank()) {
-                errorMessage = "请输入接收魔术登录链接的邮箱"
+                errorMessage = context.getString(R.string.login_error_missing_email)
                 return
             }
 
@@ -79,9 +83,9 @@ fun LoginScreen(
                 val result = repository.sendLoginMagicLink(email = email.trim())
                 isLoading = false
                 result.onSuccess {
-                    successMessage = "登录魔术链接已发送至您的邮箱，请查收邮件并点击链接登录。"
+                    successMessage = context.getString(R.string.login_magic_link_sent)
                 }.onFailure { err ->
-                    errorMessage = err.localizedMessage ?: "发送失败，请确认邮箱是否已注册"
+                    errorMessage = err.localizedMessage ?: context.getString(R.string.login_error_magic_failed)
                 }
             }
         }
@@ -127,7 +131,7 @@ fun LoginScreen(
                         fontWeight = FontWeight.Medium
                     )
                     Text(
-                        text = "切换",
+                        text = stringResource(R.string.login_switch_server),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Bold
@@ -138,14 +142,14 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Text(
-                text = "登录您的账户",
+                text = stringResource(R.string.login_title),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
-                text = "连接到自托管 VoceChat 服务器",
+                text = stringResource(R.string.login_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp)
@@ -164,12 +168,12 @@ fun LoginScreen(
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0; errorMessage = null; successMessage = null },
-                    text = { Text("密码登录", fontWeight = FontWeight.Medium) }
+                    text = { Text(stringResource(R.string.login_tab_password), fontWeight = FontWeight.Medium) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1; errorMessage = null; successMessage = null },
-                    text = { Text("Magic Link 登录", fontWeight = FontWeight.Medium) }
+                    text = { Text(stringResource(R.string.login_tab_magic_link), fontWeight = FontWeight.Medium) }
                 )
             }
 
@@ -190,7 +194,7 @@ fun LoginScreen(
                     OutlinedTextField(
                         value = email,
                         onValueChange = { email = it; errorMessage = null; successMessage = null },
-                        label = { Text("邮箱地址") },
+                        label = { Text(stringResource(R.string.login_email_label)) },
                         leadingIcon = {
                             Icon(Icons.Default.Email, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         },
@@ -211,7 +215,7 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = password,
                             onValueChange = { password = it; errorMessage = null; successMessage = null },
-                            label = { Text("密码") },
+                            label = { Text(stringResource(R.string.login_password_label)) },
                             leadingIcon = {
                                 Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             },
@@ -219,7 +223,9 @@ fun LoginScreen(
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                                     Icon(
                                         imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                        contentDescription = if (passwordVisible) "隐藏密码" else "显示密码"
+                                        contentDescription = stringResource(
+                                            if (passwordVisible) R.string.login_hide_password else R.string.login_show_password
+                                        )
                                     )
                                 }
                             },
@@ -281,7 +287,9 @@ fun LoginScreen(
                             )
                         } else {
                             Text(
-                                text = if (selectedTab == 0) "登 录" else "发送魔术登录链接",
+                                text = stringResource(
+                                    if (selectedTab == 0) R.string.login_button else R.string.login_send_magic_link
+                                ),
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold
                             )

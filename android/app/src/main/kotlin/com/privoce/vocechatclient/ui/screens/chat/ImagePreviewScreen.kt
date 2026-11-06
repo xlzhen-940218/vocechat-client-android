@@ -37,10 +37,12 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.models.ChatMessage
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 
@@ -104,7 +106,7 @@ fun ImagePreviewScreen(
         ) {
             Icon(
                 Icons.Default.Close,
-                contentDescription = "关闭预览",
+                contentDescription = stringResource(R.string.action_close_preview),
                 tint = Color.White
             )
         }
@@ -147,7 +149,7 @@ private fun ZoomableImage(
                 .data(url)
                 .crossfade(true)
                 .build(),
-            contentDescription = "查看大图",
+            contentDescription = stringResource(R.string.action_view_image),
             contentScale = ContentScale.Fit,
             modifier = Modifier
                 .fillMaxSize()

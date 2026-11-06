@@ -8,8 +8,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.models.UserInfo
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import com.privoce.vocechatclient.ui.components.ConnectionBadge
@@ -67,9 +69,9 @@ fun MainScreen(
                     ) {
                         Text(
                             text = when (selectedTab) {
-                                0 -> serverInfo?.name ?: "VoceChat"
-                                1 -> "通讯录"
-                                else -> "设置"
+                                0 -> serverInfo?.name ?: stringResource(R.string.app_name)
+                                1 -> stringResource(R.string.tab_contacts)
+                                else -> stringResource(R.string.tab_settings)
                             },
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
@@ -83,7 +85,7 @@ fun MainScreen(
                 actions = {
                     if (selectedTab == 0) {
                         IconButton(onClick = { repository.loadInitialData() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = "刷新")
+                            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.action_refresh))
                         }
                     }
                 },
@@ -102,10 +104,10 @@ fun MainScreen(
                     icon = {
                         Icon(
                             if (selectedTab == 0) Icons.Default.ChatBubble else Icons.Default.ChatBubbleOutline,
-                            contentDescription = "聊天"
+                            contentDescription = stringResource(R.string.tab_chats)
                         )
                     },
-                    label = { Text("聊天") }
+                    label = { Text(stringResource(R.string.tab_chats)) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 1,
@@ -113,10 +115,10 @@ fun MainScreen(
                     icon = {
                         Icon(
                             if (selectedTab == 1) Icons.Default.People else Icons.Default.PeopleOutline,
-                            contentDescription = "通讯录"
+                            contentDescription = stringResource(R.string.tab_contacts)
                         )
                     },
-                    label = { Text("通讯录") }
+                    label = { Text(stringResource(R.string.tab_contacts)) }
                 )
                 NavigationBarItem(
                     selected = selectedTab == 2,
@@ -124,10 +126,10 @@ fun MainScreen(
                     icon = {
                         Icon(
                             if (selectedTab == 2) Icons.Default.Settings else Icons.Default.SettingsSuggest,
-                            contentDescription = "设置"
+                            contentDescription = stringResource(R.string.tab_settings)
                         )
                     },
-                    label = { Text("设置") }
+                    label = { Text(stringResource(R.string.tab_settings)) }
                 )
             }
         },
@@ -138,7 +140,7 @@ fun MainScreen(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                 ) {
-                    Icon(Icons.Default.Add, contentDescription = "新建频道")
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.create_channel_title))
                 }
             }
         },

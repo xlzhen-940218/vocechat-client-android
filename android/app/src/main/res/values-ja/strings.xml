@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VoceChat</string>
+
+    <!-- ナビゲーションと共通 -->
+    <string name="tab_chats">チャット</string>
+    <string name="tab_contacts">連絡先</string>
+    <string name="tab_settings">設定</string>
+    <string name="action_refresh">更新</string>
+    <string name="action_clear">クリア</string>
+    <string name="action_cancel">キャンセル</string>
+    <string name="action_admin">管理者</string>
+    <string name="action_system_admin">システム管理者</string>
+    <string name="action_close_preview">プレビューを閉じる</string>
+    <string name="action_view_image">画像を表示</string>
+    <string name="fallback_user_name">ユーザー #%1$d</string>
+    <string name="fallback_uid">UID: %1$d</string>
+
+    <!-- サーバー -->
+    <string name="server_welcome_title">VoceChat へようこそ</string>
+    <string name="server_welcome_subtitle">安全で軽量なセルフホスト型チャットシステム</string>
+    <string name="server_config_title">サーバー設定</string>
+    <string name="server_url_label">サーバーアドレス (URL)</string>
+    <string name="server_url_placeholder">例: https://privoce.voce.chat</string>
+    <string name="server_preset_official">公式コミュニティ</string>
+    <string name="server_preset_local">ローカルエミュレーター</string>
+    <string name="server_connect">接続する</string>
+    <string name="server_error_empty_url">サーバーアドレスを入力してください</string>
+    <string name="server_error_connect_failed">サーバーに接続できません: %1$s</string>
+    <string name="server_error_check_network">ネットワークまたはアドレスを確認してください</string>
+
+    <!-- ログイン -->
+    <string name="login_title">アカウントにログイン</string>
+    <string name="login_subtitle">セルフホスト型 VoceChat サーバーに接続します</string>
+    <string name="login_switch_server">切り替え</string>
+    <string name="login_tab_password">パスワード</string>
+    <string name="login_tab_magic_link">マジックリンク</string>
+    <string name="login_email_label">メールアドレス</string>
+    <string name="login_password_label">パスワード</string>
+    <string name="login_show_password">パスワードを表示</string>
+    <string name="login_hide_password">パスワードを隠す</string>
+    <string name="login_button">ログイン</string>
+    <string name="login_send_magic_link">マジックリンクを送信</string>
+    <string name="login_error_missing_credentials">メールアドレスとパスワードを入力してください</string>
+    <string name="login_error_failed">ログインに失敗しました。アカウントまたはパスワードを確認してください。</string>
+    <string name="login_error_missing_email">マジックリンクを受け取るメールアドレスを入力してください</string>
+    <string name="login_magic_link_sent">マジックリンクをメールに送信しました。メールを確認してリンクをタップしてください。</string>
+    <string name="login_error_magic_failed">送信に失敗しました。メールアドレスが登録されているか確認してください。</string>
+
+    <!-- チャット一覧 -->
+    <string name="chats_search_placeholder">チャンネルやダイレクトメッセージを検索…</string>
+    <string name="chats_empty_title">メッセージはまだありません</string>
+    <string name="chats_empty_desc">右下のボタンをタップしてチャンネルを作成するか、会話を始めましょう</string>
+    <string name="chats_section_channels">チャンネル (%1$d)</string>
+    <string name="chats_section_dm">ダイレクトメッセージ</string>
+    <string name="chats_channel_hint">タップしてチャンネルを開く</string>
+    <string name="chats_member_count">%1$d 人</string>
+    <string name="chats_online_now">オンライン</string>
+    <string name="chats_offline">オフライン</string>
+
+    <!-- 連絡先 -->
+    <string name="contacts_search_placeholder">連絡先を検索…</string>
+    <string name="contacts_filter_all">すべて (%1$d)</string>
+    <string name="contacts_filter_online">オンライン (%1$d)</string>
+    <string name="contacts_empty_title">連絡先が見つかりません</string>
+    <string name="contacts_empty_search_hint">別のキーワードで検索してください</string>
+    <string name="contacts_empty_no_members">このサーバーには他のメンバーがいません</string>
+
+    <!-- 設定 -->
+    <string name="settings_not_signed_in">未ログイン</string>
+    <string name="settings_server_info">サーバー情報</string>
+    <string name="settings_server_address">サーバーアドレス</string>
+    <string name="settings_server_name">サーバー名</string>
+    <string name="settings_version">バージョン</string>
+    <string name="settings_appearance">外観とパーソナライズ</string>
+    <string name="settings_dynamic_color">Material You のダイナミックカラー</string>
+    <string name="settings_dynamic_color_desc">Android の壁紙から自動的に配色を取得します</string>
+    <string name="settings_architecture">クライアントアーキテクチャ</string>
+    <string name="settings_architecture_desc">Kotlin Native + Jetpack Compose + Material Design 3</string>
+    <string name="settings_privacy">プライバシーとオープンソース</string>
+    <string name="settings_privacy_desc">エンドツーエンドの安全性、サードパーティのテレメトリなし</string>
+    <string name="settings_logout_title">ログアウトしますか？</string>
+    <string name="settings_logout_message">ログアウトするとローカルセッションが消去され、再度ログインが必要になります。</string>
+    <string name="settings_logout_button">ログアウト</string>
+
+    <!-- 新規チャンネル -->
+    <string name="create_channel_title">新しいチャンネル</string>
+    <string name="create_channel_name_label">チャンネル名</string>
+    <string name="create_channel_name_placeholder">例: general, dev-talk</string>
+    <string name="create_channel_description_label">チャンネルの説明 (任意)</string>
+    <string name="create_channel_public">公開チャンネル</string>
+    <string name="create_channel_public_desc">すべてのサーバーメンバーが閲覧・参加できます</string>
+    <string name="create_channel_private">非公開チャンネル</string>
+    <string name="create_channel_private_desc">招待されたメンバーのみ閲覧・参加できます</string>
+    <string name="create_channel_error_empty_name">チャンネル名を入力してください</string>
+    <string name="create_channel_error_failed">作成に失敗しました: %1$s</string>
+    <string name="create_channel_unknown_error">不明なエラー</string>
+    <string name="create_channel_create">作成</string>
+
+    <!-- ユーザー詳細 -->
+    <string name="user_online">オンライン</string>
+    <string name="user_offline">オフライン</string>
+    <string name="user_id">ユーザー ID: %1$d</string>
+    <string name="user_system_admin">システム管理者</string>
+    <string name="user_send_direct_message">ダイレクトメッセージを送信</string>
+
+    <!-- 接続状態 -->
+    <string name="connection_connecting">接続中…</string>
+    <string name="connection_disconnected">未接続 (タップして再試行)</string>
+    <string name="connection_connected">ライブ</string>
+
+    <!-- チャット -->
+    <string name="chat_members_count">%1$d 人のメンバー</string>
+    <string name="chat_message_actions">メッセージ操作</string>
+    <string name="chat_reply">返信</string>
+    <string name="chat_delete_message">メッセージを削除</string>
+    <string name="chat_replying_to">%1$s に返信中</string>
+    <string name="chat_recording">録音中 %1$d 秒</string>
+    <string name="chat_recording_hint">上にスワイプでキャンセル、離して送信</string>
+    <string name="chat_input_placeholder">メッセージを入力…</string>
+    <string name="chat_add_attachment">添付ファイルを追加</string>
+    <string name="chat_emoji">絵文字</string>
+    <string name="chat_send">送信</string>
+    <string name="chat_back">戻る</string>
+    <string name="chat_cancel_reply">返信をキャンセル</string>
+    <string name="chat_replied_message">返信先メッセージ #%1$d</string>
+    <string name="chat_quoted_image">引用画像</string>
+    <string name="chat_image">画像</string>
+    <string name="chat_status_failed">失敗</string>
+    <string name="chat_status_sent">送信済み</string>
+    <string name="chat_self_name">自分</string>
+    <string name="chat_fallback_title">チャット #%1$d</string>
+    <string name="chat_error_microphone_permission">音声メッセージを送信するにはマイクの権限が必要です</string>
+    <string name="chat_error_start_recording">録音を開始できません</string>
+    <string name="chat_error_recording_failed">録音に失敗しました</string>
+    <string name="chat_error_recording_too_short">録音が短すぎます</string>
+    <string name="chat_error_open_attachment">添付ファイルを開けません: %1$s</string>
+    <string name="chat_error_read_file">ファイルの読み取りに失敗しました</string>
+    <string name="chat_voice_hold_to_talk">長押しで話す</string>
+    <string name="chat_audio_play">再生</string>
+    <string name="chat_audio_stop">停止</string>
+    <string name="chat_attachment_image">画像</string>
+    <string name="chat_attachment_video">動画</string>
+    <string name="chat_attachment_file">ファイル</string>
+
+    <!-- メッセージプレビュー -->
+    <string name="preview_image">[画像]</string>
+    <string name="preview_voice">[音声]</string>
+    <string name="preview_video">[動画] %1$s</string>
+    <string name="preview_file">[ファイル] %1$s</string>
+
+    <!-- 状態とエラー -->
+    <string name="state_uploading">アップロード中…</string>
+    <string name="state_send_failed">送信に失敗しました: %1$s</string>
+    <string name="error_play_audio">音声を再生できません</string>
+    <string name="error_login_failed">ログインに失敗しました (%1$d): %2$s</string>
+    <string name="error_send_magic_link_failed">送信に失敗しました (%1$d): %2$s</string>
+</resources>

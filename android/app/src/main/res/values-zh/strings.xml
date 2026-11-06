@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VoceChat</string>
+
+    <!-- 导航与通用 -->
+    <string name="tab_chats">聊天</string>
+    <string name="tab_contacts">通讯录</string>
+    <string name="tab_settings">设置</string>
+    <string name="action_refresh">刷新</string>
+    <string name="action_clear">清除</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_admin">管理员</string>
+    <string name="action_system_admin">系统管理员</string>
+    <string name="action_close_preview">关闭预览</string>
+    <string name="action_view_image">查看大图</string>
+    <string name="fallback_user_name">用户 #%1$d</string>
+    <string name="fallback_uid">UID: %1$d</string>
+
+    <!-- 服务器页面 -->
+    <string name="server_welcome_title">欢迎使用 VoceChat</string>
+    <string name="server_welcome_subtitle">安全、轻量、自托管的现代聊天系统</string>
+    <string name="server_config_title">服务器配置</string>
+    <string name="server_url_label">服务器地址 (URL)</string>
+    <string name="server_url_placeholder">例如: https://privoce.voce.chat</string>
+    <string name="server_preset_official">官方社区服</string>
+    <string name="server_preset_local">本地模拟器</string>
+    <string name="server_connect">连接服务器</string>
+    <string name="server_error_empty_url">请输入服务器地址</string>
+    <string name="server_error_connect_failed">无法连接到服务器: %1$s</string>
+    <string name="server_error_check_network">请检查网络或地址</string>
+
+    <!-- 登录页面 -->
+    <string name="login_title">登录您的账户</string>
+    <string name="login_subtitle">连接到自托管 VoceChat 服务器</string>
+    <string name="login_switch_server">切换</string>
+    <string name="login_tab_password">密码登录</string>
+    <string name="login_tab_magic_link">Magic Link 登录</string>
+    <string name="login_email_label">邮箱地址</string>
+    <string name="login_password_label">密码</string>
+    <string name="login_show_password">显示密码</string>
+    <string name="login_hide_password">隐藏密码</string>
+    <string name="login_button">登录</string>
+    <string name="login_send_magic_link">发送魔术登录链接</string>
+    <string name="login_error_missing_credentials">请输入邮箱和密码</string>
+    <string name="login_error_failed">登录失败，请检查账户或密码</string>
+    <string name="login_error_missing_email">请输入接收魔术登录链接的邮箱</string>
+    <string name="login_magic_link_sent">登录魔术链接已发送至您的邮箱，请查收邮件并点击链接登录。</string>
+    <string name="login_error_magic_failed">发送失败，请确认邮箱是否已注册</string>
+
+    <!-- 聊天列表 -->
+    <string name="chats_search_placeholder">搜索频道或私聊...</string>
+    <string name="chats_empty_title">暂无消息</string>
+    <string name="chats_empty_desc">点击右下角按钮创建新频道或发起对话</string>
+    <string name="chats_section_channels">频道 (%1$d)</string>
+    <string name="chats_section_dm">私信消息</string>
+    <string name="chats_channel_hint">点击进入频道聊天</string>
+    <string name="chats_member_count">%1$d 人</string>
+    <string name="chats_online_now">当前在线</string>
+    <string name="chats_offline">离线</string>
+
+    <!-- 通讯录 -->
+    <string name="contacts_search_placeholder">搜索联系人...</string>
+    <string name="contacts_filter_all">全部 (%1$d)</string>
+    <string name="contacts_filter_online">在线 (%1$d)</string>
+    <string name="contacts_empty_title">未找到联系人</string>
+    <string name="contacts_empty_search_hint">尝试其他关键词搜索</string>
+    <string name="contacts_empty_no_members">当前服务器无其他成员</string>
+
+    <!-- 设置 -->
+    <string name="settings_not_signed_in">未登录</string>
+    <string name="settings_server_info">服务器信息</string>
+    <string name="settings_server_address">服务器地址</string>
+    <string name="settings_server_name">服务器名称</string>
+    <string name="settings_version">版本</string>
+    <string name="settings_appearance">外观与个性化</string>
+    <string name="settings_dynamic_color">Material You 动态色彩</string>
+    <string name="settings_dynamic_color_desc">根据 Android 系统壁纸自动提取配色</string>
+    <string name="settings_architecture">客户端架构</string>
+    <string name="settings_architecture_desc">Kotlin 原生 + Jetpack Compose + Material Design 3</string>
+    <string name="settings_privacy">隐私与开源</string>
+    <string name="settings_privacy_desc">端到端安全，无第三方遥测追踪</string>
+    <string name="settings_logout_title">确认退出登录？</string>
+    <string name="settings_logout_message">退出后将清除本地会话，需要重新输入凭据登录。</string>
+    <string name="settings_logout_button">退出登录</string>
+
+    <!-- 新建频道 -->
+    <string name="create_channel_title">新建频道</string>
+    <string name="create_channel_name_label">频道名称</string>
+    <string name="create_channel_name_placeholder">例如: general, 开发交流</string>
+    <string name="create_channel_description_label">频道描述 (可选)</string>
+    <string name="create_channel_public">公开频道</string>
+    <string name="create_channel_public_desc">任何服务器成员均可查看并加入</string>
+    <string name="create_channel_private">私有频道</string>
+    <string name="create_channel_private_desc">仅受邀成员可见并加入</string>
+    <string name="create_channel_error_empty_name">频道名称不能为空</string>
+    <string name="create_channel_error_failed">创建失败: %1$s</string>
+    <string name="create_channel_unknown_error">未知错误</string>
+    <string name="create_channel_create">创建</string>
+
+    <!-- 用户详情 -->
+    <string name="user_online">当前在线</string>
+    <string name="user_offline">离线</string>
+    <string name="user_id">用户 ID: %1$d</string>
+    <string name="user_system_admin">系统管理员</string>
+    <string name="user_send_direct_message">发送私信消息</string>
+
+    <!-- 连接状态 -->
+    <string name="connection_connecting">正在连接...</string>
+    <string name="connection_disconnected">未连接 (点击重试)</string>
+    <string name="connection_connected">实时连接</string>
+
+    <!-- 聊天页面 -->
+    <string name="chat_members_count">%1$d 位成员</string>
+    <string name="chat_message_actions">消息操作</string>
+    <string name="chat_reply">回复此消息</string>
+    <string name="chat_delete_message">删除消息</string>
+    <string name="chat_replying_to">回复: %1$s</string>
+    <string name="chat_recording">正在录音 %1$d 秒</string>
+    <string name="chat_recording_hint">上滑取消，松开发送</string>
+    <string name="chat_input_placeholder">输入消息...</string>
+    <string name="chat_add_attachment">添加附件</string>
+    <string name="chat_emoji">表情</string>
+    <string name="chat_send">发送</string>
+    <string name="chat_back">返回</string>
+    <string name="chat_cancel_reply">取消回复</string>
+    <string name="chat_replied_message">已回复消息 #%1$d</string>
+    <string name="chat_quoted_image">引用的图片</string>
+    <string name="chat_image">图片</string>
+    <string name="chat_status_failed">失败</string>
+    <string name="chat_status_sent">已发送</string>
+    <string name="chat_self_name">我</string>
+    <string name="chat_fallback_title">聊天 #%1$d</string>
+    <string name="chat_error_microphone_permission">需要麦克风权限才能发送语音</string>
+    <string name="chat_error_start_recording">无法开始录音</string>
+    <string name="chat_error_recording_failed">录音失败</string>
+    <string name="chat_error_recording_too_short">说话时间太短</string>
+    <string name="chat_error_open_attachment">无法打开附件: %1$s</string>
+    <string name="chat_error_read_file">读取文件失败</string>
+    <string name="chat_voice_hold_to_talk">按住说话</string>
+    <string name="chat_audio_play">播放</string>
+    <string name="chat_audio_stop">停止</string>
+    <string name="chat_attachment_image">图片</string>
+    <string name="chat_attachment_video">视频</string>
+    <string name="chat_attachment_file">文件</string>
+
+    <!-- 消息预览 -->
+    <string name="preview_image">[图片]</string>
+    <string name="preview_voice">[语音]</string>
+    <string name="preview_video">[视频] %1$s</string>
+    <string name="preview_file">[文件] %1$s</string>
+
+    <!-- 异步状态与错误 -->
+    <string name="state_uploading">正在上传…</string>
+    <string name="state_send_failed">发送失败：%1$s</string>
+    <string name="error_play_audio">无法播放语音</string>
+    <string name="error_login_failed">登录失败 (%1$d): %2$s</string>
+    <string name="error_send_magic_link_failed">发送失败 (%1$d): %2$s</string>
+</resources>

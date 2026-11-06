@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VoceChat</string>
+
+    <!-- Navigation et général -->
+    <string name="tab_chats">Discussions</string>
+    <string name="tab_contacts">Contacts</string>
+    <string name="tab_settings">Paramètres</string>
+    <string name="action_refresh">Actualiser</string>
+    <string name="action_clear">Effacer</string>
+    <string name="action_cancel">Annuler</string>
+    <string name="action_admin">Admin</string>
+    <string name="action_system_admin">Administrateur système</string>
+    <string name="action_close_preview">Fermer l\'aperçu</string>
+    <string name="action_view_image">Afficher l\'image</string>
+    <string name="fallback_user_name">Utilisateur #%1$d</string>
+    <string name="fallback_uid">UID : %1$d</string>
+
+    <!-- Serveur -->
+    <string name="server_welcome_title">Bienvenue dans VoceChat</string>
+    <string name="server_welcome_subtitle">Un système de chat sécurisé, léger et auto-hébergé</string>
+    <string name="server_config_title">Configuration du serveur</string>
+    <string name="server_url_label">Adresse du serveur (URL)</string>
+    <string name="server_url_placeholder">ex. : https://privoce.voce.chat</string>
+    <string name="server_preset_official">Communauté officielle</string>
+    <string name="server_preset_local">Émulateur local</string>
+    <string name="server_connect">Se connecter</string>
+    <string name="server_error_empty_url">Veuillez saisir une adresse de serveur</string>
+    <string name="server_error_connect_failed">Impossible de se connecter au serveur : %1$s</string>
+    <string name="server_error_check_network">Vérifiez le réseau ou l\'adresse</string>
+
+    <!-- Connexion -->
+    <string name="login_title">Connectez-vous à votre compte</string>
+    <string name="login_subtitle">Connectez-vous à votre serveur VoceChat auto-hébergé</string>
+    <string name="login_switch_server">Changer</string>
+    <string name="login_tab_password">Mot de passe</string>
+    <string name="login_tab_magic_link">Lien magique</string>
+    <string name="login_email_label">Adresse e-mail</string>
+    <string name="login_password_label">Mot de passe</string>
+    <string name="login_show_password">Afficher le mot de passe</string>
+    <string name="login_hide_password">Masquer le mot de passe</string>
+    <string name="login_button">Se connecter</string>
+    <string name="login_send_magic_link">Envoyer le lien magique</string>
+    <string name="login_error_missing_credentials">Veuillez saisir votre e-mail et votre mot de passe</string>
+    <string name="login_error_failed">Échec de la connexion. Vérifiez votre compte ou votre mot de passe.</string>
+    <string name="login_error_missing_email">Veuillez saisir l\'e-mail devant recevoir le lien magique</string>
+    <string name="login_magic_link_sent">Un lien magique a été envoyé à votre adresse e-mail. Ouvrez-le pour vous connecter.</string>
+    <string name="login_error_magic_failed">Échec de l\'envoi. Vérifiez que l\'e-mail est bien enregistré.</string>
+
+    <!-- Discussions -->
+    <string name="chats_search_placeholder">Rechercher des canaux ou des messages privés…</string>
+    <string name="chats_empty_title">Aucun message pour l\'instant</string>
+    <string name="chats_empty_desc">Touchez le bouton en bas à droite pour créer un canal ou démarrer une conversation</string>
+    <string name="chats_section_channels">Canaux (%1$d)</string>
+    <string name="chats_section_dm">Messages privés</string>
+    <string name="chats_channel_hint">Touchez pour ouvrir le canal</string>
+    <string name="chats_member_count">%1$d membres</string>
+    <string name="chats_online_now">En ligne</string>
+    <string name="chats_offline">Hors ligne</string>
+
+    <!-- Contacts -->
+    <string name="contacts_search_placeholder">Rechercher des contacts…</string>
+    <string name="contacts_filter_all">Tous (%1$d)</string>
+    <string name="contacts_filter_online">En ligne (%1$d)</string>
+    <string name="contacts_empty_title">Aucun contact trouvé</string>
+    <string name="contacts_empty_search_hint">Essayez un autre terme de recherche</string>
+    <string name="contacts_empty_no_members">Aucun autre membre sur ce serveur</string>
+
+    <!-- Paramètres -->
+    <string name="settings_not_signed_in">Non connecté</string>
+    <string name="settings_server_info">Informations du serveur</string>
+    <string name="settings_server_address">Adresse du serveur</string>
+    <string name="settings_server_name">Nom du serveur</string>
+    <string name="settings_version">Version</string>
+    <string name="settings_appearance">Apparence et personnalisation</string>
+    <string name="settings_dynamic_color">Couleurs dynamiques Material You</string>
+    <string name="settings_dynamic_color_desc">Dériver automatiquement les couleurs du fond d\'écran Android</string>
+    <string name="settings_architecture">Architecture du client</string>
+    <string name="settings_architecture_desc">Kotlin Native + Jetpack Compose + Material Design 3</string>
+    <string name="settings_privacy">Confidentialité et open source</string>
+    <string name="settings_privacy_desc">Sécurité de bout en bout, aucune télémétrie tierce</string>
+    <string name="settings_logout_title">Se déconnecter ?</string>
+    <string name="settings_logout_message">La déconnexion efface la session locale ; vous devrez vous reconnecter.</string>
+    <string name="settings_logout_button">Se déconnecter</string>
+
+    <!-- Nouveau canal -->
+    <string name="create_channel_title">Nouveau canal</string>
+    <string name="create_channel_name_label">Nom du canal</string>
+    <string name="create_channel_name_placeholder">ex. : general, dev-talk</string>
+    <string name="create_channel_description_label">Description du canal (facultatif)</string>
+    <string name="create_channel_public">Canal public</string>
+    <string name="create_channel_public_desc">Tout membre du serveur peut le voir et le rejoindre</string>
+    <string name="create_channel_private">Canal privé</string>
+    <string name="create_channel_private_desc">Seuls les membres invités peuvent le voir et le rejoindre</string>
+    <string name="create_channel_error_empty_name">Le nom du canal ne peut pas être vide</string>
+    <string name="create_channel_error_failed">Échec de la création : %1$s</string>
+    <string name="create_channel_unknown_error">Erreur inconnue</string>
+    <string name="create_channel_create">Créer</string>
+
+    <!-- Détails utilisateur -->
+    <string name="user_online">En ligne</string>
+    <string name="user_offline">Hors ligne</string>
+    <string name="user_id">ID utilisateur : %1$d</string>
+    <string name="user_system_admin">Administrateur système</string>
+    <string name="user_send_direct_message">Envoyer un message privé</string>
+
+    <!-- Statut de connexion -->
+    <string name="connection_connecting">Connexion…</string>
+    <string name="connection_disconnected">Déconnecté (touchez pour réessayer)</string>
+    <string name="connection_connected">En direct</string>
+
+    <!-- Discussion -->
+    <string name="chat_members_count">%1$d membres</string>
+    <string name="chat_message_actions">Actions sur le message</string>
+    <string name="chat_reply">Répondre</string>
+    <string name="chat_delete_message">Supprimer le message</string>
+    <string name="chat_replying_to">En réponse à %1$s</string>
+    <string name="chat_recording">Enregistrement %1$d s</string>
+    <string name="chat_recording_hint">Glissez vers le haut pour annuler, relâchez pour envoyer</string>
+    <string name="chat_input_placeholder">Saisissez un message…</string>
+    <string name="chat_add_attachment">Ajouter une pièce jointe</string>
+    <string name="chat_emoji">Emoji</string>
+    <string name="chat_send">Envoyer</string>
+    <string name="chat_back">Retour</string>
+    <string name="chat_cancel_reply">Annuler la réponse</string>
+    <string name="chat_replied_message">Message répondu #%1$d</string>
+    <string name="chat_quoted_image">Image citée</string>
+    <string name="chat_image">Image</string>
+    <string name="chat_status_failed">Échec</string>
+    <string name="chat_status_sent">Envoyé</string>
+    <string name="chat_self_name">Vous</string>
+    <string name="chat_fallback_title">Discussion #%1$d</string>
+    <string name="chat_error_microphone_permission">L\'autorisation du microphone est requise pour envoyer des messages vocaux</string>
+    <string name="chat_error_start_recording">Impossible de démarrer l\'enregistrement</string>
+    <string name="chat_error_recording_failed">Échec de l\'enregistrement</string>
+    <string name="chat_error_recording_too_short">Enregistrement trop court</string>
+    <string name="chat_error_open_attachment">Impossible d\'ouvrir la pièce jointe : %1$s</string>
+    <string name="chat_error_read_file">Échec de la lecture du fichier</string>
+    <string name="chat_voice_hold_to_talk">Maintenir pour parler</string>
+    <string name="chat_audio_play">Lire</string>
+    <string name="chat_audio_stop">Arrêter</string>
+    <string name="chat_attachment_image">Image</string>
+    <string name="chat_attachment_video">Vidéo</string>
+    <string name="chat_attachment_file">Fichier</string>
+
+    <!-- Aperçus de message -->
+    <string name="preview_image">[Image]</string>
+    <string name="preview_voice">[Message vocal]</string>
+    <string name="preview_video">[Vidéo] %1$s</string>
+    <string name="preview_file">[Fichier] %1$s</string>
+
+    <!-- États et erreurs -->
+    <string name="state_uploading">Envoi en cours…</string>
+    <string name="state_send_failed">Échec de l\'envoi : %1$s</string>
+    <string name="error_play_audio">Impossible de lire l\'audio</string>
+    <string name="error_login_failed">Échec de la connexion (%1$d) : %2$s</string>
+    <string name="error_send_magic_link_failed">Échec de l\'envoi (%1$d) : %2$s</string>
+</resources>

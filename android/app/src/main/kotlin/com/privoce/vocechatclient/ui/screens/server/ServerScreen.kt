@@ -19,7 +19,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -38,6 +40,7 @@ fun ServerScreen(
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     var urlText by remember { mutableStateOf(repository.preferences.serverUrl) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -45,7 +48,7 @@ fun ServerScreen(
 
     fun testAndProceed() {
         if (urlText.isBlank()) {
-            errorMessage = "请输入服务器地址"
+            errorMessage = context.getString(R.string.server_error_empty_url)
             return
         }
         isLoading = true
@@ -57,7 +60,8 @@ fun ServerScreen(
                 detectedServerInfo = info
                 onServerConnected()
             }.onFailure { err ->
-                errorMessage = "无法连接到服务器: ${err.localizedMessage ?: "请检查网络或地址"}"
+                val detail = err.localizedMessage ?: context.getString(R.string.server_error_check_network)
+                errorMessage = context.getString(R.string.server_error_connect_failed, detail)
             }
         }
     }
@@ -95,14 +99,14 @@ fun ServerScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             Text(
-                text = "欢迎使用 VoceChat",
+                text = stringResource(R.string.server_welcome_title),
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground
             )
 
             Text(
-                text = "安全、轻量、自托管的现代聊天系统",
+                text = stringResource(R.string.server_welcome_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 6.dp)
@@ -123,7 +127,7 @@ fun ServerScreen(
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "服务器配置",
+                        text = stringResource(R.string.server_config_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -135,15 +139,15 @@ fun ServerScreen(
                             urlText = it
                             errorMessage = null
                         },
-                        label = { Text("服务器地址 (URL)") },
-                        placeholder = { Text("例如: https://privoce.voce.chat") },
+                        label = { Text(stringResource(R.string.server_url_label)) },
+                        placeholder = { Text(stringResource(R.string.server_url_placeholder)) },
                         leadingIcon = {
                             Icon(Icons.Default.Dns, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         },
                         trailingIcon = {
                             if (urlText.isNotEmpty()) {
                                 IconButton(onClick = { urlText = "" }) {
-                                    Icon(Icons.Default.Clear, contentDescription = "清除")
+                                    Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
                                 }
                             }
                         },
@@ -165,11 +169,11 @@ fun ServerScreen(
                     ) {
                         SuggestionChip(
                             onClick = { urlText = "https://privoce.voce.chat" },
-                            label = { Text("官方社区服", fontSize = 12.sp) }
+                            label = { Text(stringResource(R.string.server_preset_official), fontSize = 12.sp) }
                         )
                         SuggestionChip(
                             onClick = { urlText = "http://10.0.2.2:3000" },
-                            label = { Text("本地模拟器", fontSize = 12.sp) }
+                            label = { Text(stringResource(R.string.server_preset_local), fontSize = 12.sp) }
                         )
                     }
 
@@ -203,7 +207,7 @@ fun ServerScreen(
                                 strokeWidth = 2.5.dp
                             )
                         } else {
-                            Text("连接服务器", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.server_connect), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
                         }

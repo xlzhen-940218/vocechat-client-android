@@ -48,8 +48,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privoce.vocechatclient.R
 
 private val EMOJI_LIST = listOf(
     "😀", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂",
@@ -102,9 +104,9 @@ fun AttachmentPanel(
             .padding(horizontal = 16.dp, vertical = 20.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        AttachmentAction(Icons.Default.PhotoLibrary, "图片", Color(0xFF43A047), onPickImages)
-        AttachmentAction(Icons.Default.Videocam, "视频", Color(0xFF1E88E5), onPickVideo)
-        AttachmentAction(Icons.Default.InsertDriveFile, "文件", Color(0xFFFB8C00), onPickDocument)
+        AttachmentAction(Icons.Default.PhotoLibrary, stringResource(R.string.chat_attachment_image), Color(0xFF43A047), onPickImages)
+        AttachmentAction(Icons.Default.Videocam, stringResource(R.string.chat_attachment_video), Color(0xFF1E88E5), onPickVideo)
+        AttachmentAction(Icons.Default.InsertDriveFile, stringResource(R.string.chat_attachment_file), Color(0xFFFB8C00), onPickDocument)
     }
 }
 
@@ -183,7 +185,7 @@ fun VoiceRecordButton(
     ) {
         Icon(
             imageVector = Icons.Default.Mic,
-            contentDescription = "按住说话",
+            contentDescription = stringResource(R.string.chat_voice_hold_to_talk),
             tint = if (recording) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
         )
     }
@@ -244,7 +246,7 @@ fun AudioMessageBubble(
             mediaPlayer.prepareAsync()
         } catch (e: Exception) {
             stopPlayback()
-            Toast.makeText(context, "无法播放语音", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.error_play_audio), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -257,7 +259,9 @@ fun AudioMessageBubble(
     ) {
         Icon(
             imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
-            contentDescription = if (isPlaying) "停止" else "播放",
+            contentDescription = stringResource(
+                if (isPlaying) R.string.chat_audio_stop else R.string.chat_audio_play
+            ),
             tint = if (isSelf) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.width(6.dp))

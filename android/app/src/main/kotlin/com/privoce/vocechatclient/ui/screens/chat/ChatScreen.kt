@@ -39,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -51,6 +52,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.models.ChatMessage
 import com.privoce.vocechatclient.data.models.MessageStatus
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
@@ -85,11 +87,11 @@ fun ChatScreen(
         if (chatType == "dm") users.find { it.uid == chatId } else null
     }
 
-    val title = channel?.displayName ?: dmUser?.displayName ?: "Chat #$chatId"
+    val title = channel?.displayName ?: dmUser?.displayName ?: stringResource(R.string.chat_fallback_title, chatId)
     val subtitle = if (chatType == "channel") {
-        "${channel?.members?.size ?: 0} 位成员"
+        stringResource(R.string.chat_members_count, channel?.members?.size ?: 0)
     } else {
-        if (dmUser?.online == true) "在线" else "离线"
+        stringResource(if (dmUser?.online == true) R.string.user_online else R.string.user_offline)
     }
 
     val key = "${chatType}_$chatId"
@@ -121,7 +123,7 @@ fun ChatScreen(
     ) { granted ->
         hasRecordPermission = granted
         if (!granted) {
-            Toast.makeText(context, "需要麦克风权限才能发送语音", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.chat_error_microphone_permission), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -154,7 +156,7 @@ fun ChatScreen(
             return false
         }
         if (!voiceRecorder.start()) {
-            Toast.makeText(context, "无法开始录音", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.chat_error_start_recording), Toast.LENGTH_SHORT).show()
             return false
         }
         isRecording = true
@@ -168,12 +170,12 @@ fun ChatScreen(
         val result = voiceRecorder.stop()
         isRecording = false
         if (result == null) {
-            Toast.makeText(context, "录音失败", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.chat_error_recording_failed), Toast.LENGTH_SHORT).show()
             return
         }
         if (result.durationMs < 800) {
             result.file.delete()
-            Toast.makeText(context, "说话时间太短", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.chat_error_recording_too_short), Toast.LENGTH_SHORT).show()
             return
         }
         repository.sendAttachment(
@@ -212,7 +214,11 @@ fun ChatScreen(
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fileUrl))
             context.startActivity(intent)
         } catch (e: Exception) {
-            Toast.makeText(context, "无法打开附件: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.chat_error_open_attachment, e.message ?: ""),
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -256,7 +262,7 @@ fun ChatScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "消息操作",
+                    text = stringResource(R.string.chat_message_actions),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -287,7 +293,7 @@ fun ChatScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 ListItem(
-                    headlineContent = { Text("回复此消息") },
+                    headlineContent = { Text(stringResource(R.string.chat_reply)) },
                     leadingContent = { Icon(Icons.Default.Reply, contentDescription = null) },
                     modifier = Modifier.clickable {
                         replyingMessage = msg
@@ -297,7 +303,7 @@ fun ChatScreen(
 
                 if (msg.fromUid == currentUserId) {
                     ListItem(
-                        headlineContent = { Text("删除消息", color = MaterialTheme.colorScheme.error) },
+                        headlineContent = { Text(stringResource(R.string.chat_delete_message), color = MaterialTheme.colorScheme.error) },
                         leadingContent = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                         modifier = Modifier.clickable {
                             scope.launch {
@@ -387,7 +393,7 @@ fun ChatScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.chat_back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -421,7 +427,11 @@ fun ChatScreen(
                     MessageBubbleItem(
                         message = msg,
                         isSelf = isSelf,
-                        senderName = sender?.displayName ?: if (isSelf) "Admin" else "User #${msg.fromUid}",
+                        senderName = sender?.displayName ?: if (isSelf) {
+                            stringResource(R.string.chat_self_name)
+                        } else {
+                            stringResource(R.string.fallback_user_name, msg.fromUid)
+                        },
                         senderAvatarUrl = repository.apiClient.getUserAvatarUrl(msg.fromUid, sender?.avatarUpdatedAt),
                         senderIsBot = sender?.isBot == true,
                         onLongClick = { selectedMessageForOptions = msg },
@@ -436,7 +446,8 @@ fun ChatScreen(
             AnimatedVisibility(visible = replyingMessage != null) {
                 replyingMessage?.let { replyMsg ->
                     val replySender = repository.getUser(replyMsg.fromUid)
-                    val replySenderName = replySender?.displayName ?: "User #${replyMsg.fromUid}"
+                    val replySenderName = replySender?.displayName
+                        ?: stringResource(R.string.fallback_user_name, replyMsg.fromUid)
                     Surface(
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier.fillMaxWidth()
@@ -454,20 +465,24 @@ fun ChatScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = "回复: $replySenderName",
+                                    text = stringResource(R.string.chat_replying_to, replySenderName),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = replyMsg.previewText,
+                                    text = replyMsg.previewText(context),
                                     style = MaterialTheme.typography.bodySmall,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                             }
                             IconButton(onClick = { replyingMessage = null }) {
-                                Icon(Icons.Default.Close, contentDescription = "取消回复", modifier = Modifier.size(18.dp))
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = stringResource(R.string.chat_cancel_reply),
+                                    modifier = Modifier.size(18.dp)
+                                )
                             }
                         }
                     }
@@ -492,13 +507,13 @@ fun ChatScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "正在录音 ${recordElapsed}s",
+                            text = stringResource(R.string.chat_recording, recordElapsed),
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            text = "上滑取消，松开发送",
+                            text = stringResource(R.string.chat_recording_hint),
                             fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
                         )
@@ -536,7 +551,7 @@ fun ChatScreen(
                         ) {
                             Icon(
                                 imageVector = if (showExtras || showEmoji) Icons.Default.Close else Icons.Default.AddCircleOutline,
-                                contentDescription = "添加附件",
+                                contentDescription = stringResource(R.string.chat_add_attachment),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -544,7 +559,7 @@ fun ChatScreen(
                         OutlinedTextField(
                             value = inputText,
                             onValueChange = { inputText = it },
-                            placeholder = { Text("输入消息...", fontSize = 14.sp) },
+                            placeholder = { Text(stringResource(R.string.chat_input_placeholder), fontSize = 14.sp) },
                             maxLines = 4,
                             shape = RoundedCornerShape(22.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -573,7 +588,7 @@ fun ChatScreen(
                         ) {
                             Icon(
                                 Icons.Default.EmojiEmotions,
-                                contentDescription = "表情",
+                                contentDescription = stringResource(R.string.chat_emoji),
                                 tint = if (showEmoji) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -589,7 +604,7 @@ fun ChatScreen(
                             ) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = "发送",
+                                    contentDescription = stringResource(R.string.chat_send),
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -658,6 +673,7 @@ private fun MessageBubbleItem(
     onOpenFile: (String) -> Unit,
     repository: VoceChatRepository
 ) {
+    val context = LocalContext.current
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val formattedTime = remember(message.createdAt) {
         timeFormat.format(Date(message.createdAt))
@@ -729,7 +745,8 @@ private fun MessageBubbleItem(
                     if (message.replyToMid != null && message.replyToMid > 0) {
                         val repliedMsg = repository.getMessage(message.replyToMid)
                         val repliedSender = repliedMsg?.let { repository.getUser(it.fromUid) }
-                        val repliedSenderName = repliedSender?.displayName ?: "User #${repliedMsg?.fromUid ?: message.replyToMid}"
+                        val repliedSenderName = repliedSender?.displayName
+                            ?: stringResource(R.string.fallback_user_name, repliedMsg?.fromUid ?: message.replyToMid)
                         val repliedAvatarUrl = repliedSender?.let { repository.apiClient.getUserAvatarUrl(it.uid, it.avatarUpdatedAt) }
 
                         Surface(
@@ -768,7 +785,7 @@ private fun MessageBubbleItem(
                                                 .data(imgUrl)
                                                 .crossfade(true)
                                                 .build(),
-                                            contentDescription = "引用的图片",
+                                            contentDescription = stringResource(R.string.chat_quoted_image),
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -778,7 +795,7 @@ private fun MessageBubbleItem(
                                         )
                                     } else if (repliedMsg.isAudio) {
                                         Text(
-                                            text = repliedMsg.previewText,
+                                            text = repliedMsg.previewText(context),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
@@ -812,7 +829,7 @@ private fun MessageBubbleItem(
                                     }
                                 } else {
                                     Text(
-                                        text = "已回复消息 #${message.replyToMid}",
+                                        text = stringResource(R.string.chat_replied_message, message.replyToMid),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                                     )
@@ -829,7 +846,7 @@ private fun MessageBubbleItem(
                                 .data(imageUrl)
                                 .crossfade(true)
                                 .build(),
-                            contentDescription = "图片",
+                            contentDescription = stringResource(R.string.chat_image),
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -946,13 +963,13 @@ private fun MessageBubbleItem(
                                 )
                                 MessageStatus.FAILED -> Icon(
                                     Icons.Default.ErrorOutline,
-                                    contentDescription = "失败",
+                                    contentDescription = stringResource(R.string.chat_status_failed),
                                     tint = MaterialTheme.colorScheme.error,
                                     modifier = Modifier.size(12.dp)
                                 )
                                 MessageStatus.SUCCESS -> Icon(
                                     Icons.Default.Check,
-                                    contentDescription = "已发送",
+                                    contentDescription = stringResource(R.string.chat_status_sent),
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(12.dp)
                                 )
@@ -993,7 +1010,7 @@ private fun copyUriToCache(context: Context, uri: Uri, displayName: String): Fil
         file
     } catch (e: Exception) {
         Log.e("ChatScreen", "Failed to copy picked file", e)
-        Toast.makeText(context, "读取文件失败", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.chat_error_read_file), Toast.LENGTH_SHORT).show()
         null
     }
 }

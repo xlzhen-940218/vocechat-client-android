@@ -11,8 +11,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.models.UserInfo
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import com.privoce.vocechatclient.ui.components.VoceAvatar
@@ -55,7 +57,7 @@ fun UserDetailDialog(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = if (user.online) "当前在线" else "离线",
+                    text = stringResource(if (user.online) R.string.user_online else R.string.user_offline),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (user.online) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -73,7 +75,7 @@ fun UserDetailDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Numbers, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text(text = "用户 ID: ${user.uid}", style = MaterialTheme.typography.bodyMedium)
+                        Text(text = stringResource(R.string.user_id, user.uid), style = MaterialTheme.typography.bodyMedium)
                     }
                     if (!user.email.isNullOrBlank()) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -86,7 +88,7 @@ fun UserDetailDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Security, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(12.dp))
-                            Text(text = "系统管理员", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(text = stringResource(R.string.user_system_admin), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                 }
@@ -104,7 +106,7 @@ fun UserDetailDialog(
             ) {
                 Icon(Icons.Default.Chat, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("发送私信消息")
+                Text(stringResource(R.string.user_send_direct_message))
             }
         }
     }

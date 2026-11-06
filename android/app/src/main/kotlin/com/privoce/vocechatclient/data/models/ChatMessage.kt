@@ -1,6 +1,8 @@
 package com.privoce.vocechatclient.data.models
 
+import android.content.Context
 import com.google.gson.annotations.SerializedName
+import com.privoce.vocechatclient.R
 
 enum class MessageStatus {
     SENDING,
@@ -65,13 +67,12 @@ data class ChatMessage(
             ?: properties?.get("duration")?.toString()?.toIntOrNull()
             ?: 0
 
-    val previewText: String
-        get() = when {
-            isImage -> "[图片]"
-            isAudio -> "[语音]"
-            isVideo -> "[视频] ${fileName}"
-            isFile -> "[文件] $fileName"
-            else -> content
-        }
+    fun previewText(context: Context): String = when {
+        isImage -> context.getString(R.string.preview_image)
+        isAudio -> context.getString(R.string.preview_voice)
+        isVideo -> context.getString(R.string.preview_video, fileName)
+        isFile -> context.getString(R.string.preview_file, fileName)
+        else -> content
+    }
 }
 

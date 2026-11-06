@@ -15,10 +15,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.models.GroupInfo
 import com.privoce.vocechatclient.data.models.UserInfo
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
@@ -36,6 +39,7 @@ fun ChatsTab(
     val users by repository.users.collectAsState()
     val messagesMap by repository.messages.collectAsState()
     val currentUserId = repository.preferences.currentUserId
+    val context = LocalContext.current
 
     var searchQuery by remember { mutableStateOf("") }
 
@@ -55,14 +59,14 @@ fun ChatsTab(
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("搜索频道或私聊...", fontSize = 14.sp) },
+            placeholder = { Text(stringResource(R.string.chats_search_placeholder), fontSize = 14.sp) },
             leadingIcon = {
                 Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
             },
             trailingIcon = {
                 if (searchQuery.isNotEmpty()) {
                     IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Clear, contentDescription = "清除")
+                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.action_clear))
                     }
                 }
             },
@@ -82,8 +86,8 @@ fun ChatsTab(
         if (filteredChannels.isEmpty() && directMessageUsers.isEmpty()) {
             EmptyStateView(
                 icon = Icons.Default.ChatBubbleOutline,
-                title = "暂无消息",
-                description = "点击右下角按钮创建新频道或发起对话",
+                title = stringResource(R.string.chats_empty_title),
+                description = stringResource(R.string.chats_empty_desc),
                 modifier = Modifier.weight(1f)
             )
         } else {
@@ -97,7 +101,7 @@ fun ChatsTab(
                 if (filteredChannels.isNotEmpty()) {
                     item {
                         Text(
-                            text = "频道 (${filteredChannels.size})",
+                            text = stringResource(R.string.chats_section_channels, filteredChannels.size),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
@@ -110,7 +114,7 @@ fun ChatsTab(
 
                         ChannelItem(
                             channel = channel,
-                            lastMessage = lastMsg?.previewText,
+                            lastMessage = lastMsg?.previewText(context),
                             onClick = { onOpenChat("channel", channel.gid) }
                         )
                     }
@@ -120,7 +124,7 @@ fun ChatsTab(
                 if (directMessageUsers.isNotEmpty()) {
                     item {
                         Text(
-                            text = "私信消息",
+                            text = stringResource(R.string.chats_section_dm),
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
@@ -134,7 +138,7 @@ fun ChatsTab(
                         DirectMessageItem(
                             user = user,
                             avatarUrl = repository.apiClient.getUserAvatarUrl(user.uid, user.avatarUpdatedAt),
-                            lastMessage = lastMsg?.previewText,
+                            lastMessage = lastMsg?.previewText(context),
                             onClick = { onOpenChat("dm", user.uid) }
                         )
                     }
@@ -191,7 +195,7 @@ private fun ChannelItem(
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = lastMessage ?: channel.description ?: "点击进入频道聊天",
+                    text = lastMessage ?: channel.description ?: stringResource(R.string.chats_channel_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -203,7 +207,7 @@ private fun ChannelItem(
                 if (count > 0) {
                     SuggestionChip(
                         onClick = onClick,
-                        label = { Text("$count 人", fontSize = 11.sp) },
+                        label = { Text(stringResource(R.string.chats_member_count, count), fontSize = 11.sp) },
                         modifier = Modifier.height(28.dp)
                     )
                 }
@@ -257,7 +261,7 @@ private fun DirectMessageItem(
                             shape = RoundedCornerShape(4.dp)
                         ) {
                             Text(
-                                text = "管理员",
+                                text = stringResource(R.string.action_admin),
                                 color = MaterialTheme.colorScheme.onTertiaryContainer,
                                 style = MaterialTheme.typography.labelSmall,
                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
@@ -266,7 +270,9 @@ private fun DirectMessageItem(
                     }
                 }
                 Text(
-                    text = lastMessage ?: if (user.online) "当前在线" else "离线",
+                    text = lastMessage ?: stringResource(
+                        if (user.online) R.string.chats_online_now else R.string.chats_offline
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,

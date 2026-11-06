@@ -12,9 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import com.privoce.vocechatclient.ui.components.VoceAvatar
 
@@ -35,8 +37,8 @@ fun SettingsTab(
     if (showLogoutDialog) {
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
-            title = { Text("确认退出登录？") },
-            text = { Text("退出后将清除本地会话，需要重新输入凭据登录。") },
+            title = { Text(stringResource(R.string.settings_logout_title)) },
+            text = { Text(stringResource(R.string.settings_logout_message)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -45,12 +47,12 @@ fun SettingsTab(
                         onLogout()
                     }
                 ) {
-                    Text("退出", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.settings_logout_button), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("取消")
+                    Text(stringResource(R.string.action_cancel))
                 }
             }
         )
@@ -77,7 +79,7 @@ fun SettingsTab(
             ) {
                 VoceAvatar(
                     avatarUrl = currentUser?.let { repository.apiClient.getUserAvatarUrl(it.uid, it.avatarUpdatedAt) },
-                    name = currentUser?.displayName ?: "User",
+                    name = currentUser?.displayName ?: stringResource(R.string.app_name),
                     size = 64.dp,
                     isBot = currentUser?.isBot == true
                 )
@@ -86,13 +88,15 @@ fun SettingsTab(
 
                 Column {
                     Text(
-                        text = currentUser?.displayName ?: "未登录",
+                        text = currentUser?.displayName ?: stringResource(R.string.settings_not_signed_in),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = currentUser?.email ?: "UID: ${currentUser?.uid ?: ""}",
+                        text = currentUser?.email ?: currentUser?.uid?.let {
+                            stringResource(R.string.fallback_uid, it)
+                        } ?: "",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -103,7 +107,7 @@ fun SettingsTab(
                             modifier = Modifier.padding(top = 4.dp)
                         ) {
                             Text(
-                                text = "系统管理员",
+                                text = stringResource(R.string.user_system_admin),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -124,7 +128,7 @@ fun SettingsTab(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = "服务器信息",
+                    text = stringResource(R.string.settings_server_info),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -133,17 +137,17 @@ fun SettingsTab(
 
                 SettingsItemRow(
                     icon = Icons.Default.Dns,
-                    title = "服务器地址",
+                    title = stringResource(R.string.settings_server_address),
                     subtitle = repository.preferences.serverUrl
                 )
                 SettingsItemRow(
                     icon = Icons.Default.Info,
-                    title = "服务器名称",
+                    title = stringResource(R.string.settings_server_name),
                     subtitle = serverInfo?.name ?: "VoceChat Server"
                 )
                 SettingsItemRow(
                     icon = Icons.Default.CloudQueue,
-                    title = "版本",
+                    title = stringResource(R.string.settings_version),
                     subtitle = serverInfo?.version ?: "0.3.x"
                 )
             }
@@ -159,7 +163,7 @@ fun SettingsTab(
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
-                    text = "外观与个性化",
+                    text = stringResource(R.string.settings_appearance),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
@@ -173,12 +177,12 @@ fun SettingsTab(
                 ) {
                     Column {
                         Text(
-                            text = "Material You 动态色彩",
+                            text = stringResource(R.string.settings_dynamic_color),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
-                            text = "根据 Android 系统壁纸自动提取配色",
+                            text = stringResource(R.string.settings_dynamic_color_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -205,13 +209,13 @@ fun SettingsTab(
             Column(modifier = Modifier.padding(20.dp)) {
                 SettingsItemRow(
                     icon = Icons.Default.Android,
-                    title = "客户端架构",
-                    subtitle = "Kotlin 原生 + Jetpack Compose + Material Design 3"
+                    title = stringResource(R.string.settings_architecture),
+                    subtitle = stringResource(R.string.settings_architecture_desc)
                 )
                 SettingsItemRow(
                     icon = Icons.Default.Security,
-                    title = "隐私与开源",
-                    subtitle = "端到端安全，无第三方遥测追踪"
+                    title = stringResource(R.string.settings_privacy),
+                    subtitle = stringResource(R.string.settings_privacy_desc)
                 )
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -226,7 +230,7 @@ fun SettingsTab(
                 ) {
                     Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("退出登录")
+                    Text(stringResource(R.string.settings_logout_button))
                 }
             }
         }

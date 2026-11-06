@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VoceChat</string>
+
+    <!-- 내비게이션 및 공통 -->
+    <string name="tab_chats">채팅</string>
+    <string name="tab_contacts">연락처</string>
+    <string name="tab_settings">설정</string>
+    <string name="action_refresh">새로고침</string>
+    <string name="action_clear">지우기</string>
+    <string name="action_cancel">취소</string>
+    <string name="action_admin">관리자</string>
+    <string name="action_system_admin">시스템 관리자</string>
+    <string name="action_close_preview">미리보기 닫기</string>
+    <string name="action_view_image">이미지 보기</string>
+    <string name="fallback_user_name">사용자 #%1$d</string>
+    <string name="fallback_uid">UID: %1$d</string>
+
+    <!-- 서버 -->
+    <string name="server_welcome_title">VoceChat에 오신 것을 환영합니다</string>
+    <string name="server_welcome_subtitle">안전하고 가벼운 셀프 호스팅 채팅 시스템</string>
+    <string name="server_config_title">서버 구성</string>
+    <string name="server_url_label">서버 주소 (URL)</string>
+    <string name="server_url_placeholder">예: https://privoce.voce.chat</string>
+    <string name="server_preset_official">공식 커뮤니티</string>
+    <string name="server_preset_local">로컬 에뮬레이터</string>
+    <string name="server_connect">연결</string>
+    <string name="server_error_empty_url">서버 주소를 입력하세요</string>
+    <string name="server_error_connect_failed">서버에 연결할 수 없습니다: %1$s</string>
+    <string name="server_error_check_network">네트워크 또는 주소를 확인하세요</string>
+
+    <!-- 로그인 -->
+    <string name="login_title">계정에 로그인</string>
+    <string name="login_subtitle">셀프 호스팅 VoceChat 서버에 연결하세요</string>
+    <string name="login_switch_server">전환</string>
+    <string name="login_tab_password">비밀번호</string>
+    <string name="login_tab_magic_link">매직 링크</string>
+    <string name="login_email_label">이메일 주소</string>
+    <string name="login_password_label">비밀번호</string>
+    <string name="login_show_password">비밀번호 표시</string>
+    <string name="login_hide_password">비밀번호 숨기기</string>
+    <string name="login_button">로그인</string>
+    <string name="login_send_magic_link">매직 링크 보내기</string>
+    <string name="login_error_missing_credentials">이메일과 비밀번호를 입력하세요</string>
+    <string name="login_error_failed">로그인에 실패했습니다. 계정 또는 비밀번호를 확인하세요.</string>
+    <string name="login_error_missing_email">매직 링크를 받을 이메일을 입력하세요</string>
+    <string name="login_magic_link_sent">매직 링크가 이메일로 전송되었습니다. 메일함에서 링크를 눌러 로그인하세요.</string>
+    <string name="login_error_magic_failed">전송에 실패했습니다. 이메일이 등록되어 있는지 확인하세요.</string>
+
+    <!-- 채팅 목록 -->
+    <string name="chats_search_placeholder">채널 또는 다이렉트 메시지 검색…</string>
+    <string name="chats_empty_title">아직 메시지가 없습니다</string>
+    <string name="chats_empty_desc">오른쪽 아래 버튼을 눌러 채널을 만들거나 대화를 시작하세요</string>
+    <string name="chats_section_channels">채널 (%1$d)</string>
+    <string name="chats_section_dm">다이렉트 메시지</string>
+    <string name="chats_channel_hint">눌러서 채널 열기</string>
+    <string name="chats_member_count">%1$d명</string>
+    <string name="chats_online_now">온라인</string>
+    <string name="chats_offline">오프라인</string>
+
+    <!-- 연락처 -->
+    <string name="contacts_search_placeholder">연락처 검색…</string>
+    <string name="contacts_filter_all">전체 (%1$d)</string>
+    <string name="contacts_filter_online">온라인 (%1$d)</string>
+    <string name="contacts_empty_title">연락처를 찾을 수 없습니다</string>
+    <string name="contacts_empty_search_hint">다른 검색어를 사용해 보세요</string>
+    <string name="contacts_empty_no_members">이 서버에 다른 멤버가 없습니다</string>
+
+    <!-- 설정 -->
+    <string name="settings_not_signed_in">로그인하지 않음</string>
+    <string name="settings_server_info">서버 정보</string>
+    <string name="settings_server_address">서버 주소</string>
+    <string name="settings_server_name">서버 이름</string>
+    <string name="settings_version">버전</string>
+    <string name="settings_appearance">화면 및 개인 설정</string>
+    <string name="settings_dynamic_color">Material You 동적 색상</string>
+    <string name="settings_dynamic_color_desc">Android 배경화면에서 색상을 자동으로 추출합니다</string>
+    <string name="settings_architecture">클라이언트 아키텍처</string>
+    <string name="settings_architecture_desc">Kotlin Native + Jetpack Compose + Material Design 3</string>
+    <string name="settings_privacy">개인정보 및 오픈 소스</string>
+    <string name="settings_privacy_desc">종단 간 보안, 타사 텔레메트리 없음</string>
+    <string name="settings_logout_title">로그아웃할까요?</string>
+    <string name="settings_logout_message">로그아웃하면 로컬 세션이 지워지며 다시 로그인해야 합니다.</string>
+    <string name="settings_logout_button">로그아웃</string>
+
+    <!-- 새 채널 -->
+    <string name="create_channel_title">새 채널</string>
+    <string name="create_channel_name_label">채널 이름</string>
+    <string name="create_channel_name_placeholder">예: general, dev-talk</string>
+    <string name="create_channel_description_label">채널 설명 (선택)</string>
+    <string name="create_channel_public">공개 채널</string>
+    <string name="create_channel_public_desc">모든 서버 멤버가 보고 참여할 수 있습니다</string>
+    <string name="create_channel_private">비공개 채널</string>
+    <string name="create_channel_private_desc">초대된 멤버만 보고 참여할 수 있습니다</string>
+    <string name="create_channel_error_empty_name">채널 이름을 입력하세요</string>
+    <string name="create_channel_error_failed">생성 실패: %1$s</string>
+    <string name="create_channel_unknown_error">알 수 없는 오류</string>
+    <string name="create_channel_create">만들기</string>
+
+    <!-- 사용자 상세 -->
+    <string name="user_online">온라인</string>
+    <string name="user_offline">오프라인</string>
+    <string name="user_id">사용자 ID: %1$d</string>
+    <string name="user_system_admin">시스템 관리자</string>
+    <string name="user_send_direct_message">다이렉트 메시지 보내기</string>
+
+    <!-- 연결 상태 -->
+    <string name="connection_connecting">연결 중…</string>
+    <string name="connection_disconnected">연결 끊김 (눌러서 재시도)</string>
+    <string name="connection_connected">실시간</string>
+
+    <!-- 채팅 -->
+    <string name="chat_members_count">멤버 %1$d명</string>
+    <string name="chat_message_actions">메시지 작업</string>
+    <string name="chat_reply">답장</string>
+    <string name="chat_delete_message">메시지 삭제</string>
+    <string name="chat_replying_to">%1$s에게 답장</string>
+    <string name="chat_recording">녹음 중 %1$d초</string>
+    <string name="chat_recording_hint">위로 밀어 취소, 놓으면 전송</string>
+    <string name="chat_input_placeholder">메시지 입력…</string>
+    <string name="chat_add_attachment">첨부 파일 추가</string>
+    <string name="chat_emoji">이모지</string>
+    <string name="chat_send">보내기</string>
+    <string name="chat_back">뒤로</string>
+    <string name="chat_cancel_reply">답장 취소</string>
+    <string name="chat_replied_message">답장한 메시지 #%1$d</string>
+    <string name="chat_quoted_image">인용된 이미지</string>
+    <string name="chat_image">이미지</string>
+    <string name="chat_status_failed">실패</string>
+    <string name="chat_status_sent">전송됨</string>
+    <string name="chat_self_name">나</string>
+    <string name="chat_fallback_title">채팅 #%1$d</string>
+    <string name="chat_error_microphone_permission">음성 메시지를 보내려면 마이크 권한이 필요합니다</string>
+    <string name="chat_error_start_recording">녹음을 시작할 수 없습니다</string>
+    <string name="chat_error_recording_failed">녹음 실패</string>
+    <string name="chat_error_recording_too_short">녹음이 너무 짧습니다</string>
+    <string name="chat_error_open_attachment">첨부 파일을 열 수 없습니다: %1$s</string>
+    <string name="chat_error_read_file">파일을 읽지 못했습니다</string>
+    <string name="chat_voice_hold_to_talk">길게 눌러 말하기</string>
+    <string name="chat_audio_play">재생</string>
+    <string name="chat_audio_stop">중지</string>
+    <string name="chat_attachment_image">이미지</string>
+    <string name="chat_attachment_video">동영상</string>
+    <string name="chat_attachment_file">파일</string>
+
+    <!-- 메시지 미리보기 -->
+    <string name="preview_image">[이미지]</string>
+    <string name="preview_voice">[음성]</string>
+    <string name="preview_video">[동영상] %1$s</string>
+    <string name="preview_file">[파일] %1$s</string>
+
+    <!-- 상태 및 오류 -->
+    <string name="state_uploading">업로드 중…</string>
+    <string name="state_send_failed">전송 실패: %1$s</string>
+    <string name="error_play_audio">오디오를 재생할 수 없습니다</string>
+    <string name="error_login_failed">로그인 실패 (%1$d): %2$s</string>
+    <string name="error_send_magic_link_failed">전송 실패 (%1$d): %2$s</string>
+</resources>

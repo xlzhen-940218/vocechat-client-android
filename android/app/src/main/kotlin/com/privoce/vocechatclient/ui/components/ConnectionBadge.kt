@@ -14,9 +14,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.repository.ConnectionStatus
 import com.privoce.vocechatclient.ui.theme.OnlineGreen
 
@@ -36,19 +38,19 @@ fun ConnectionBadge(
                 MaterialTheme.colorScheme.secondaryContainer,
                 MaterialTheme.colorScheme.onSecondaryContainer,
                 MaterialTheme.colorScheme.primary,
-                "正在连接..."
+                stringResource(R.string.connection_connecting)
             )
             ConnectionStatus.DISCONNECTED, ConnectionStatus.ERROR -> Quadruple(
                 MaterialTheme.colorScheme.errorContainer,
                 MaterialTheme.colorScheme.onErrorContainer,
                 MaterialTheme.colorScheme.error,
-                "未连接 (点击重试)"
+                stringResource(R.string.connection_disconnected)
             )
             ConnectionStatus.CONNECTED -> Quadruple(
                 MaterialTheme.colorScheme.surfaceVariant,
                 MaterialTheme.colorScheme.onSurfaceVariant,
                 OnlineGreen,
-                "实时连接"
+                stringResource(R.string.connection_connected)
             )
         }
 

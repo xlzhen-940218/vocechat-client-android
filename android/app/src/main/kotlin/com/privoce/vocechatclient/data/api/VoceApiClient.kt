@@ -1,11 +1,13 @@
 package com.privoce.vocechatclient.data.api
 
+import android.content.Context
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
 import com.google.gson.Gson
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
+import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.models.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -21,6 +23,7 @@ class VoceApiClient(
     private var baseUrl: String,
     private var token: String? = null,
     private var refreshToken: String? = null,
+    private val context: Context,
     private val onTokenRefreshed: ((newToken: String, newRefreshToken: String) -> Unit)? = null
 ) {
     private val TAG = "VoceApiClient"
@@ -180,7 +183,7 @@ class VoceApiClient(
                     this@VoceApiClient.refreshToken = loginRes.refreshToken
                     Result.success(loginRes)
                 } else {
-                    Result.failure(IOException("登录失败 (${response.code}): $body"))
+                    Result.failure(IOException(context.getString(R.string.error_login_failed, response.code, body)))
                 }
             }
         } catch (e: Exception) {
@@ -236,7 +239,9 @@ class VoceApiClient(
                 if (response.isSuccessful) {
                     Result.success(body)
                 } else {
-                    Result.failure(IOException("发送失败 (${response.code}): $body"))
+                    Result.failure(
+                        IOException(context.getString(R.string.error_send_magic_link_failed, response.code, body))
+                    )
                 }
             }
         } catch (e: Exception) {

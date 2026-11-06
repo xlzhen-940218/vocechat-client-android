@@ -580,15 +580,13 @@ class VoceApiClient(
         }
     }
 
-    fun getUserAvatarUrl(uid: Int, avatarUpdatedAt: Long? = null): String? {
-        if (avatarUpdatedAt != null && avatarUpdatedAt <= 0) return null
+    fun getUserAvatarUrl(uid: Int, avatarUpdatedAt: Long? = null): String {
         val tParam = if (avatarUpdatedAt != null && avatarUpdatedAt > 0) "&t=$avatarUpdatedAt" else ""
         val url = buildUrl("/resource/avatar?uid=$uid$tParam")
         return if (!token.isNullOrBlank()) "$url&api-key=$token" else url
     }
 
-    fun getGroupAvatarUrl(gid: Int, avatarUpdatedAt: Long? = null): String? {
-        if (avatarUpdatedAt != null && avatarUpdatedAt <= 0) return null
+    fun getGroupAvatarUrl(gid: Int, avatarUpdatedAt: Long? = null): String {
         val tParam = if (avatarUpdatedAt != null && avatarUpdatedAt > 0) "&t=$avatarUpdatedAt" else ""
         val url = buildUrl("/resource/group_avatar?gid=$gid$tParam")
         return if (!token.isNullOrBlank()) "$url&api-key=$token" else url

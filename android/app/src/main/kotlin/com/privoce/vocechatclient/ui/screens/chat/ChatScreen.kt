@@ -1,10 +1,15 @@
 package com.privoce.vocechatclient.ui.screens.chat
 
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,6 +37,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.privoce.vocechatclient.data.models.ChatMessage
@@ -42,7 +49,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ChatScreen(
     chatType: String, // "channel" or "dm"
@@ -79,6 +86,19 @@ fun ChatScreen(
     var inputText by remember { mutableStateOf("") }
     var replyingMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var selectedMessageForOptions by remember { mutableStateOf<ChatMessage?>(null) }
+    var previewImageUrl by remember { mutableStateOf<String?>(null) }
+
+    val context = LocalContext.current
+
+    fun openFile(filePath: String) {
+        try {
+            val fileUrl = repository.apiClient.getFileUrl(filePath)
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fileUrl))
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(context, "无法打开附件: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     // Auto-load history for channel or DM
     LaunchedEffect(chatId, chatType) {
@@ -175,6 +195,47 @@ fun ChatScreen(
         }
     }
 
+    // Fullscreen Image Preview Dialog
+    previewImageUrl?.let { imageUrl ->
+        Dialog(
+            onDismissRequest = { previewImageUrl = null },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(imageUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "查看大图",
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable { previewImageUrl = null }
+                )
+
+                IconButton(
+                    onClick = { previewImageUrl = null },
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .padding(16.dp)
+                        .align(Alignment.TopStart)
+                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "关闭预览",
+                        tint = Color.White
+                    )
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -260,10 +321,12 @@ fun ChatScreen(
                     MessageBubbleItem(
                         message = msg,
                         isSelf = isSelf,
-                        senderName = sender?.displayName ?: "User #${msg.fromUid}",
+                        senderName = sender?.displayName ?: if (isSelf) "Admin" else "User #${msg.fromUid}",
                         senderAvatarUrl = repository.apiClient.getUserAvatarUrl(msg.fromUid, sender?.avatarUpdatedAt),
                         senderIsBot = sender?.isBot == true,
                         onLongClick = { selectedMessageForOptions = msg },
+                        onPreviewImage = { url -> previewImageUrl = url },
+                        onOpenFile = { path -> openFile(path) },
                         repository = repository
                     )
                 }
@@ -375,6 +438,7 @@ fun ChatScreen(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun MessageBubbleItem(
     message: ChatMessage,
@@ -383,8 +447,14 @@ private fun MessageBubbleItem(
     senderAvatarUrl: String?,
     senderIsBot: Boolean = false,
     onLongClick: () -> Unit,
+    onPreviewImage: (String) -> Unit,
+    onOpenFile: (String) -> Unit,
     repository: VoceChatRepository
 ) {
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val formattedTime = remember(message.createdAt) {
+        timeFormat.format(Date(message.createdAt))
+    }
     val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()) }
     val formattedDate = remember(message.createdAt) {
         dateFormat.format(Date(message.createdAt))
@@ -393,241 +463,265 @@ private fun MessageBubbleItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onLongClick() }
             .padding(vertical = 4.dp),
+        horizontalArrangement = if (isSelf) Arrangement.End else Arrangement.Start,
         verticalAlignment = Alignment.Top
     ) {
-        VoceAvatar(
-            avatarUrl = senderAvatarUrl,
-            name = senderName,
-            size = 38.dp,
-            isBot = senderIsBot,
-            modifier = Modifier.padding(top = 2.dp, end = 12.dp)
-        )
+        if (!isSelf) {
+            VoceAvatar(
+                avatarUrl = senderAvatarUrl,
+                name = senderName,
+                size = 36.dp,
+                isBot = senderIsBot,
+                modifier = Modifier.padding(top = 2.dp, end = 8.dp)
+            )
+        }
 
         Column(
-            modifier = Modifier.weight(1f)
+            horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start,
+            modifier = Modifier.widthIn(max = 290.dp)
         ) {
-            // Header: Name + Date
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 4.dp)
-            ) {
+            if (!isSelf) {
                 Text(
-                    text = senderName,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 13.sp
+                    text = buildAnnotatedString {
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)) {
+                            append(senderName)
+                        }
+                        append("  ")
+                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 10.sp)) {
+                            append(formattedDate)
+                        }
+                    },
+                    modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = formattedDate,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    fontSize = 11.sp
-                )
-
-                if (isSelf) {
-                    Spacer(modifier = Modifier.width(6.dp))
-                    when (message.status) {
-                        MessageStatus.SENDING -> CircularProgressIndicator(
-                            modifier = Modifier.size(10.dp),
-                            strokeWidth = 1.5.dp
-                        )
-                        MessageStatus.FAILED -> Icon(
-                            Icons.Default.ErrorOutline,
-                            contentDescription = "失败",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        MessageStatus.SUCCESS -> {}
-                    }
-                }
             }
 
-            // Replying Quote Card ("包含关系")
-            if (message.replyToMid != null && message.replyToMid > 0) {
-                val repliedMsg = repository.getMessage(message.replyToMid)
-                val repliedSender = repliedMsg?.let { repository.getUser(it.fromUid) }
-                val repliedSenderName = repliedSender?.displayName ?: "User #${repliedMsg?.fromUid ?: message.replyToMid}"
-                val repliedAvatarUrl = repliedSender?.let { repository.apiClient.getUserAvatarUrl(it.uid, it.avatarUpdatedAt) }
+            // Bubble Card Container
+            Surface(
+                shape = RoundedCornerShape(
+                    topStart = if (isSelf) 16.dp else 4.dp,
+                    topEnd = if (isSelf) 4.dp else 16.dp,
+                    bottomStart = 16.dp,
+                    bottomEnd = 16.dp
+                ),
+                color = if (isSelf) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                tonalElevation = 1.dp,
+                modifier = Modifier.combinedClickable(
+                    onClick = {
+                        if (message.isImage) {
+                            onPreviewImage(repository.apiClient.getFileUrl(message.content))
+                        } else if (message.isFile) {
+                            onOpenFile(message.content)
+                        }
+                    },
+                    onLongClick = onLongClick
+                )
+            ) {
+                Column(modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+                    // Quoted Reply Card ("包含关系")
+                    if (message.replyToMid != null && message.replyToMid > 0) {
+                        val repliedMsg = repository.getMessage(message.replyToMid)
+                        val repliedSender = repliedMsg?.let { repository.getUser(it.fromUid) }
+                        val repliedSenderName = repliedSender?.displayName ?: "User #${repliedMsg?.fromUid ?: message.replyToMid}"
+                        val repliedAvatarUrl = repliedSender?.let { repository.apiClient.getUserAvatarUrl(it.uid, it.avatarUpdatedAt) }
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 6.dp)
-                ) {
-                    Column(modifier = Modifier.padding(8.dp)) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isSelf) MaterialTheme.colorScheme.surface.copy(alpha = 0.75f) else MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(6.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(bottom = 4.dp)
+                                ) {
+                                    VoceAvatar(
+                                        avatarUrl = repliedAvatarUrl,
+                                        name = repliedSenderName,
+                                        size = 18.dp,
+                                        isBot = repliedSender?.isBot == true
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = repliedSenderName,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                if (repliedMsg != null) {
+                                    if (repliedMsg.isImage) {
+                                        val imgUrl = repository.apiClient.getFileUrl(repliedMsg.content)
+                                        AsyncImage(
+                                            model = ImageRequest.Builder(LocalContext.current)
+                                                .data(imgUrl)
+                                                .crossfade(true)
+                                                .build(),
+                                            contentDescription = "引用的图片",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(130.dp)
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .clickable { onPreviewImage(imgUrl) }
+                                        )
+                                    } else if (repliedMsg.isFile) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.clickable { onOpenFile(repliedMsg.content) }
+                                        ) {
+                                            Icon(
+                                                Icons.Default.AttachFile,
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(14.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(
+                                                text = repliedMsg.properties?.get("name")?.toString() ?: repliedMsg.content.substringAfterLast("/"),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    } else {
+                                        Text(
+                                            text = repliedMsg.content,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 3,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = "已回复消息 #${message.replyToMid}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Message Content
+                    if (message.isImage) {
+                        val imageUrl = repository.apiClient.getFileUrl(message.content)
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(imageUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = "图片",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 140.dp, max = 260.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { onPreviewImage(imageUrl) }
+                        )
+                    } else if (message.isFile) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 6.dp)
+                            modifier = Modifier
+                                .padding(vertical = 4.dp)
+                                .clickable { onOpenFile(message.content) }
                         ) {
-                            VoceAvatar(
-                                avatarUrl = repliedAvatarUrl,
-                                name = repliedSenderName,
-                                size = 18.dp,
-                                isBot = repliedSender?.isBot == true
-                            )
+                            Icon(Icons.Default.AttachFile, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = repliedSenderName,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.SemiBold
+                                text = message.properties?.get("name")?.toString() ?: message.content.substringAfterLast("/"),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
                             )
                         }
-
-                        if (repliedMsg != null) {
-                            if (repliedMsg.isImage) {
-                                val imgUrl = repository.apiClient.getFileUrl(repliedMsg.content)
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(min = 100.dp, max = 200.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data(imgUrl)
-                                            .crossfade(true)
-                                            .build(),
-                                        contentDescription = "引用的图片",
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-                                }
-                            } else if (repliedMsg.isFile) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        Icons.Default.AttachFile,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = repliedMsg.properties?.get("name")?.toString() ?: repliedMsg.content.substringAfterLast("/"),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            } else {
-                                Text(
-                                    text = repliedMsg.content,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 3,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        } else {
+                    } else {
+                        SelectionContainer {
                             Text(
-                                text = "已回复消息 #${message.replyToMid}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                text = message.content,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (isSelf) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(vertical = 2.dp)
                             )
                         }
                     }
-                }
-            }
 
-            // Message Content
-            if (message.isImage) {
-                val imageUrl = repository.apiClient.getFileUrl(message.content)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 140.dp, max = 280.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(imageUrl)
-                            .crossfade(true)
-                            .listener(
-                                onError = { _, result ->
-                                    Log.e("ChatScreen", "AsyncImage FAILED for $imageUrl: ${result.throwable.message}", result.throwable)
-                                },
-                                onSuccess = { _, _ ->
-                                    Log.d("ChatScreen", "AsyncImage SUCCESS for $imageUrl")
-                                }
-                            )
-                            .build(),
-                        contentDescription = "图片",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
-            } else if (message.isFile) {
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                    ) {
-                        Icon(Icons.Default.AttachFile, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = message.properties?.get("name")?.toString() ?: message.content.substringAfterLast("/"),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            } else {
-                SelectionContainer {
-                    Text(
-                        text = message.content,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(vertical = 1.dp)
-                    )
-                }
-            }
-
-            // Reactions list below message content
-            if (message.reactions.isNotEmpty()) {
-                Row(
-                    modifier = Modifier
-                        .padding(top = 6.dp, bottom = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    message.reactions.forEach { reaction ->
-                        val hasReacted = reaction.fromUids.contains(repository.preferences.currentUserId)
-                        Surface(
-                            onClick = { repository.reactMessage(message.mid, reaction.emoji) },
-                            shape = RoundedCornerShape(12.dp),
-                            color = if (hasReacted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-                            border = BorderStroke(
-                                width = 1.dp,
-                                color = if (hasReacted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-                            )
+                    // Reactions list below message content
+                    if (message.reactions.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .padding(top = 6.dp, bottom = 2.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = reaction.emoji, fontSize = 14.sp)
-                                if (reaction.count > 1) {
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = "${reaction.count}",
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (hasReacted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            message.reactions.forEach { reaction ->
+                                val hasReacted = reaction.fromUids.contains(repository.preferences.currentUserId)
+                                Surface(
+                                    onClick = { repository.reactMessage(message.mid, reaction.emoji) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = if (hasReacted) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                                    border = BorderStroke(
+                                        width = 1.dp,
+                                        color = if (hasReacted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
                                     )
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(text = reaction.emoji, fontSize = 14.sp)
+                                        if (reaction.count > 1) {
+                                            Spacer(modifier = Modifier.width(3.dp))
+                                            Text(
+                                                text = "${reaction.count}",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (hasReacted) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
                                 }
+                            }
+                        }
+                    }
+
+                    // Time & Status
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .padding(top = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = formattedTime,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontSize = 10.sp,
+                            color = (if (isSelf) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant).copy(alpha = 0.7f)
+                        )
+
+                        if (isSelf) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            when (message.status) {
+                                MessageStatus.SENDING -> CircularProgressIndicator(
+                                    modifier = Modifier.size(10.dp),
+                                    strokeWidth = 1.5.dp
+                                )
+                                MessageStatus.FAILED -> Icon(
+                                    Icons.Default.ErrorOutline,
+                                    contentDescription = "失败",
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                MessageStatus.SUCCESS -> Icon(
+                                    Icons.Default.Check,
+                                    contentDescription = "已发送",
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(12.dp)
+                                )
                             }
                         }
                     }

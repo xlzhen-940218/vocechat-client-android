@@ -1,95 +1,66 @@
 plugins {
     id "com.android.application"
-    id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin"
-    // START: FlutterFire Configuration
-    id "com.google.gms.google-services"
-    // END: FlutterFire Configuration
-}
-
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader("UTF-8") { reader ->
-        localProperties.load(reader)
-    }
-}
-
-def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
-if (flutterVersionCode == null) {
-    flutterVersionCode = "1"
-}
-
-def flutterVersionName = localProperties.getProperty("flutter.versionName")
-if (flutterVersionName == null) {
-    flutterVersionName = "1.0"
-}
-
-def keystoreProperties = new Properties()
-def keystorePropertiesFile = rootProject.file("key.properties")
-def hasKeystore = keystorePropertiesFile.exists()
-if (hasKeystore) {
-    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+    id "org.jetbrains.kotlin.plugin.compose"
 }
 
 android {
-    namespace = "com.privoce.vocechatclient"
-    compileSdk = 37
-    ndkVersion = flutter.ndkVersion
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-    kotlinOptions {
-        jvmTarget = "17"
-    }
+    namespace "com.privoce.vocechatclient"
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.privoce.vocechatclient"
-        minSdkVersion = flutter.minSdkVersion
-        targetSdk = 37
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        minSdk 24
+        targetSdk 35
+        versionCode 84
+        versionName "1.0.0"
 
-        // @Author by andy
-        // @Date 2022/05/21
-        // @Solve the problem "Cannot fit requested classes in a single dex file"
-        multiDexEnabled true
-    }
-
-    signingConfigs {
-        if (hasKeystore) {
-            release {
-                keyAlias keystoreProperties["keyAlias"]
-                keyPassword keystoreProperties["keyPassword"]
-                storeFile keystoreProperties["storeFile"] ? file(keystoreProperties["storeFile"]) : null
-                storePassword keystoreProperties["storePassword"]
-            }
-        }
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            if (hasKeystore) {
-                signingConfig signingConfigs.release
-            }
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 
-    lint {
-        checkReleaseBuilds false
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        compose true
     }
 }
 
-flutter {
-    source "../.."
-}
-
 dependencies {
-    // @Author by andy
-    // @Date 2022/05/21
-    // @Solve the problem "Cannot fit requested classes in a single dex file"
-    implementation "androidx.multidex:multidex:2.0.1"
+    implementation "androidx.core:core-ktx:1.15.0"
+    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7"
+    implementation "androidx.lifecycle:lifecycle-runtime-compose:2.8.7"
+    implementation "androidx.activity:activity-compose:1.9.3"
+
+    // Compose BOM
+    implementation platform("androidx.compose:compose-bom:2024.10.01")
+    implementation "androidx.compose.ui:ui"
+    implementation "androidx.compose.ui:ui-graphics"
+    implementation "androidx.compose.ui:ui-tooling-preview"
+    implementation "androidx.compose.material3:material3"
+    implementation "androidx.compose.material:material-icons-extended"
+    implementation "androidx.navigation:navigation-compose:2.8.3"
+
+    // Networking & SSE
+    implementation "com.squareup.okhttp3:okhttp:4.12.0"
+    implementation "com.squareup.okhttp3:logging-interceptor:4.12.0"
+    implementation "com.squareup.okhttp3:okhttp-sse:4.12.0"
+    implementation "com.google.code.gson:gson:2.11.0"
+
+    // Image loading
+    implementation "io.coil-kt:coil-compose:2.7.0"
+
+    // Coroutines
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0"
+
+    debugImplementation "androidx.compose.ui:ui-tooling"
 }

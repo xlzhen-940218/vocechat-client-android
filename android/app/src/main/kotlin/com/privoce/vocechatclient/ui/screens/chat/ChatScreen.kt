@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +53,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import coil.request.videoFrameMillis
 import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.models.ChatMessage
 import com.privoce.vocechatclient.data.models.MessageStatus
@@ -96,7 +98,7 @@ fun ChatScreen(
 
     val key = "${chatType}_$chatId"
     val messageList = messagesMap[key] ?: emptyList()
-    val imageMessages = remember(messageList) { messageList.filter { it.isImage } }
+    val mediaMessages = remember(messageList) { messageList.filter { it.isImage || it.isVideo } }
 
     var inputText by remember { mutableStateOf("") }
     var replyingMessage by remember { mutableStateOf<ChatMessage?>(null) }
@@ -323,8 +325,8 @@ fun ChatScreen(
             (msg.mid != 0L && msg.mid == target.mid) ||
                 (msg.localMid.isNotBlank() && msg.localMid == target.localMid)
         }
-        val previewImages = imageMessages.takeIf { list -> list.any(isSameMessage) } ?: listOf(target)
-        val startIndex = previewImages.indexOfFirst(isSameMessage).coerceAtLeast(0)
+        val previewItems = mediaMessages.takeIf { list -> list.any(isSameMessage) } ?: listOf(target)
+        val startIndex = previewItems.indexOfFirst(isSameMessage).coerceAtLeast(0)
 
         Dialog(
             onDismissRequest = { previewTarget = null },
@@ -333,8 +335,8 @@ fun ChatScreen(
                 decorFitsSystemWindows = false
             )
         ) {
-            ImagePreviewScreen(
-                images = previewImages,
+            MediaPreviewScreen(
+                items = previewItems,
                 initialIndex = startIndex,
                 repository = repository,
                 onClose = { previewTarget = null }
@@ -435,7 +437,7 @@ fun ChatScreen(
                         senderAvatarUrl = repository.apiClient.getUserAvatarUrl(msg.fromUid, sender?.avatarUpdatedAt),
                         senderIsBot = sender?.isBot == true,
                         onLongClick = { selectedMessageForOptions = msg },
-                        onPreviewImage = { target -> previewTarget = target },
+                        onPreviewMedia = { target -> previewTarget = target },
                         onOpenFile = { path -> openFile(path) },
                         repository = repository
                     )
@@ -669,7 +671,7 @@ private fun MessageBubbleItem(
     senderAvatarUrl: String?,
     senderIsBot: Boolean = false,
     onLongClick: () -> Unit,
-    onPreviewImage: (ChatMessage) -> Unit,
+    onPreviewMedia: (ChatMessage) -> Unit,
     onOpenFile: (String) -> Unit,
     repository: VoceChatRepository
 ) {
@@ -731,9 +733,9 @@ private fun MessageBubbleItem(
                 tonalElevation = 1.dp,
                 modifier = Modifier.combinedClickable(
                     onClick = {
-                        if (message.isImage) {
-                            onPreviewImage(message)
-                        } else if (message.isVideo || message.isFile) {
+                        if (message.isImage || message.isVideo) {
+                            onPreviewMedia(message)
+                        } else if (message.isFile) {
                             onOpenFile(message.content)
                         }
                     },
@@ -791,7 +793,7 @@ private fun MessageBubbleItem(
                                                 .fillMaxWidth()
                                                 .height(130.dp)
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .clickable { onPreviewImage(repliedMsg) }
+                                                .clickable { onPreviewMedia(repliedMsg) }
                                         )
                                     } else if (repliedMsg.isAudio) {
                                         Text(
@@ -799,13 +801,51 @@ private fun MessageBubbleItem(
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
-                                    } else if (repliedMsg.isVideo || repliedMsg.isFile) {
+                                    } else if (repliedMsg.isVideo) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.clickable { onPreviewMedia(repliedMsg) }
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(64.dp)
+                                                    .height(48.dp)
+                                                    .clip(RoundedCornerShape(4.dp))
+                                                    .background(Color.Black),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                AsyncImage(
+                                                    model = ImageRequest.Builder(context)
+                                                        .data(repository.apiClient.getFileUrl(repliedMsg.content))
+                                                        .videoFrameMillis(1000)
+                                                        .crossfade(true)
+                                                        .build(),
+                                                    contentDescription = stringResource(R.string.chat_attachment_video),
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                                Icon(
+                                                    Icons.Default.PlayArrow,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text(
+                                                text = repliedMsg.fileName,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    } else if (repliedMsg.isFile) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.clickable { onOpenFile(repliedMsg.content) }
                                         ) {
                                             Icon(
-                                                if (repliedMsg.isVideo) Icons.Default.Videocam else Icons.Default.AttachFile,
+                                                Icons.Default.AttachFile,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(14.dp)
@@ -852,7 +892,7 @@ private fun MessageBubbleItem(
                                 .fillMaxWidth()
                                 .heightIn(min = 140.dp, max = 260.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { onPreviewImage(message) }
+                                .clickable { onPreviewMedia(message) }
                         )
                     } else if (message.isAudio) {
                         AudioMessageBubble(
@@ -861,19 +901,80 @@ private fun MessageBubbleItem(
                             durationSeconds = message.durationSeconds
                         )
                     } else if (message.isVideo) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
+                        Box(
                             modifier = Modifier
-                                .padding(vertical = 4.dp)
-                                .clickable { onOpenFile(message.content) }
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.Black)
+                                .clickable { onPreviewMedia(message) }
                         ) {
-                            Icon(Icons.Default.Videocam, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = message.fileName,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium
+                            AsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data(repository.apiClient.getFileUrl(message.content))
+                                    .videoFrameMillis(1000)
+                                    .crossfade(true)
+                                    .build(),
+                                contentDescription = stringResource(R.string.chat_attachment_video),
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
                             )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.verticalGradient(
+                                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))
+                                        )
+                                    )
+                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.Black.copy(alpha = 0.5f),
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .size(52.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Default.PlayArrow,
+                                        contentDescription = stringResource(R.string.chat_audio_play),
+                                        tint = Color.White,
+                                        modifier = Modifier.size(30.dp)
+                                    )
+                                }
+                            }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.Videocam,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = message.fileName,
+                                    color = Color.White,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (message.durationSeconds > 0) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = formatMediaTime(message.durationSeconds * 1000),
+                                        color = Color.White.copy(alpha = 0.8f),
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
                         }
                     } else if (message.isFile) {
                         Row(

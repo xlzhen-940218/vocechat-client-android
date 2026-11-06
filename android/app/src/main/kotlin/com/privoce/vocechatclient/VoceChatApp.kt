@@ -3,6 +3,7 @@ package com.privoce.vocechatclient
 import android.app.Application
 import coil.Coil
 import coil.ImageLoader
+import coil.decode.VideoFrameDecoder
 import coil.disk.DiskCache
 import coil.memory.MemoryCache
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
@@ -19,6 +20,7 @@ class VoceChatApp : Application() {
 
         val imageLoader = ImageLoader.Builder(this)
             .okHttpClient(repository.apiClient.okHttpClient)
+            .components { add(VideoFrameDecoder.Factory()) }
             .memoryCache {
                 MemoryCache.Builder(this)
                     .maxSizePercent(0.25)

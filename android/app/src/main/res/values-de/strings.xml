@@ -139,6 +139,7 @@
     <string name="chat_voice_hold_to_talk">Zum Sprechen halten</string>
     <string name="chat_audio_play">Abspielen</string>
     <string name="chat_audio_stop">Stopp</string>
+    <string name="chat_audio_pause">Pause</string>
     <string name="chat_attachment_image">Bild</string>
     <string name="chat_attachment_video">Video</string>
     <string name="chat_attachment_file">Datei</string>
@@ -153,6 +154,7 @@
     <string name="state_uploading">Wird hochgeladen…</string>
     <string name="state_send_failed">Senden fehlgeschlagen: %1$s</string>
     <string name="error_play_audio">Audio kann nicht abgespielt werden</string>
+    <string name="error_play_video">Video kann nicht abgespielt werden</string>
     <string name="error_login_failed">Anmeldung fehlgeschlagen (%1$d): %2$s</string>
     <string name="error_send_magic_link_failed">Senden fehlgeschlagen (%1$d): %2$s</string>
 </resources>

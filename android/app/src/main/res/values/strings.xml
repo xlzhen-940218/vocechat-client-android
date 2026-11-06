@@ -139,6 +139,7 @@
     <string name="chat_voice_hold_to_talk">Hold to talk</string>
     <string name="chat_audio_play">Play</string>
     <string name="chat_audio_stop">Stop</string>
+    <string name="chat_audio_pause">Pause</string>
     <string name="chat_attachment_image">Image</string>
     <string name="chat_attachment_video">Video</string>
     <string name="chat_attachment_file">File</string>
@@ -153,6 +154,7 @@
     <string name="state_uploading">Uploading…</string>
     <string name="state_send_failed">Failed to send: %1$s</string>
     <string name="error_play_audio">Unable to play audio</string>
+    <string name="error_play_video">Unable to play video</string>
     <string name="error_login_failed">Sign-in failed (%1$d): %2$s</string>
     <string name="error_send_magic_link_failed">Failed to send (%1$d): %2$s</string>
 </resources>

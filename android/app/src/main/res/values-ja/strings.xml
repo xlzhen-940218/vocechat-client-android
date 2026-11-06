@@ -139,6 +139,7 @@
     <string name="chat_voice_hold_to_talk">長押しで話す</string>
     <string name="chat_audio_play">再生</string>
     <string name="chat_audio_stop">停止</string>
+    <string name="chat_audio_pause">一時停止</string>
     <string name="chat_attachment_image">画像</string>
     <string name="chat_attachment_video">動画</string>
     <string name="chat_attachment_file">ファイル</string>
@@ -153,6 +154,7 @@
     <string name="state_uploading">アップロード中…</string>
     <string name="state_send_failed">送信に失敗しました: %1$s</string>
     <string name="error_play_audio">音声を再生できません</string>
+    <string name="error_play_video">動画を再生できません</string>
     <string name="error_login_failed">ログインに失敗しました (%1$d): %2$s</string>
     <string name="error_send_magic_link_failed">送信に失敗しました (%1$d): %2$s</string>
 </resources>

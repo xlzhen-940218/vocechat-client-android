@@ -3,10 +3,12 @@ package com.privoce.vocechatclient.ui.screens.chat
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.widget.Toast
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
@@ -36,7 +39,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -44,6 +49,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -52,6 +60,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.privoce.vocechatclient.R
+import kotlinx.coroutines.delay
+import kotlin.random.Random
 
 private val EMOJI_LIST = listOf(
     "😀", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂",
@@ -201,27 +211,43 @@ fun AudioMessageBubble(
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
     var player by remember { mutableStateOf<MediaPlayer?>(null) }
+    var positionMs by remember { mutableIntStateOf(0) }
+    var durationMs by remember { mutableIntStateOf(durationSeconds * 1000) }
+    val waveform = remember(url) {
+        val random = Random(url.hashCode().toLong())
+        List(32) { 0.25f + random.nextFloat() * 0.75f }
+    }
 
-    fun stopPlayback() {
-        try {
-            player?.stop()
-        } catch (_: Exception) {
-        }
+    val activeColor = if (isSelf) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.primary
+    }
+    val inactiveColor = activeColor.copy(alpha = 0.25f)
+
+    fun releasePlayer() {
         try {
             player?.release()
         } catch (_: Exception) {
         }
         player = null
         isPlaying = false
+        positionMs = 0
     }
 
     DisposableEffect(Unit) {
-        onDispose { stopPlayback() }
+        onDispose { releasePlayer() }
     }
 
     fun togglePlayback() {
-        if (isPlaying) {
-            stopPlayback()
+        player?.let { existing ->
+            if (existing.isPlaying) {
+                existing.pause()
+                isPlaying = false
+            } else {
+                existing.start()
+                isPlaying = true
+            }
             return
         }
         val mediaPlayer = MediaPlayer()
@@ -235,61 +261,128 @@ fun AudioMessageBubble(
             )
             mediaPlayer.setDataSource(url)
             mediaPlayer.setOnPreparedListener {
+                if (it.duration > 0) durationMs = it.duration
                 it.start()
                 isPlaying = true
             }
-            mediaPlayer.setOnCompletionListener { stopPlayback() }
+            mediaPlayer.setOnCompletionListener {
+                isPlaying = false
+                positionMs = 0
+                it.seekTo(0)
+            }
             mediaPlayer.setOnErrorListener { _, _, _ ->
-                stopPlayback()
+                releasePlayer()
+                Toast.makeText(context, context.getString(R.string.error_play_audio), Toast.LENGTH_SHORT).show()
                 true
             }
             mediaPlayer.prepareAsync()
         } catch (e: Exception) {
-            stopPlayback()
+            releasePlayer()
             Toast.makeText(context, context.getString(R.string.error_play_audio), Toast.LENGTH_SHORT).show()
         }
+    }
+
+    LaunchedEffect(isPlaying) {
+        while (isPlaying) {
+            player?.let { if (it.isPlaying) positionMs = it.currentPosition }
+            delay(120)
+        }
+    }
+
+    val progress = if (durationMs > 0) {
+        (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
+    } else {
+        0f
     }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable { togglePlayback() }
-            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .width(220.dp)
+            .padding(horizontal = 2.dp, vertical = 2.dp)
     ) {
-        Icon(
-            imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
-            contentDescription = stringResource(
-                if (isPlaying) R.string.chat_audio_stop else R.string.chat_audio_play
-            ),
-            tint = if (isSelf) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            shape = CircleShape,
+            color = activeColor,
+            modifier = Modifier.size(36.dp)
         ) {
-            repeat(14) { index ->
-                val barHeight = (4 + (index % 5) * 4).dp
-                Box(
-                    modifier = Modifier
-                        .width(3.dp)
-                        .height(barHeight)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(
-                            (if (isSelf) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary)
-                                .copy(alpha = 0.6f)
-                        )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(36.dp)
+                    .clickable { togglePlayback() }
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                    contentDescription = stringResource(
+                        if (isPlaying) R.string.chat_audio_pause else R.string.chat_audio_play
+                    ),
+                    tint = if (isSelf) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onPrimary
+                    },
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
-        if (durationSeconds > 0) {
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = String.format("%d:%02d", durationSeconds / 60, durationSeconds % 60),
-                fontSize = 11.sp,
-                color = if (isSelf) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-            )
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(30.dp)
+                    .pointerInput(durationMs) {
+                        detectTapGestures { offset ->
+                            if (durationMs > 0) {
+                                val fraction = (offset.x / size.width).coerceIn(0f, 1f)
+                                val target = (durationMs * fraction).toInt()
+                                player?.seekTo(target)
+                                positionMs = target
+                            }
+                        }
+                    }
+            ) {
+                val count = waveform.size
+                val gap = 2.dp.toPx()
+                val barWidth = ((size.width - gap * (count - 1)) / count).coerceAtLeast(1f)
+                val progressX = size.width * progress
+                waveform.forEachIndexed { index, amplitude ->
+                    val barHeight = (size.height * amplitude).coerceAtLeast(3.dp.toPx())
+                    val x = index * (barWidth + gap)
+                    val played = x + barWidth / 2f <= progressX
+                    drawRoundRect(
+                        color = if (played) activeColor else inactiveColor,
+                        topLeft = Offset(x, (size.height - barHeight) / 2f),
+                        size = Size(barWidth, barHeight),
+                        cornerRadius = CornerRadius(barWidth / 2f, barWidth / 2f)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = formatMediaTime(positionMs),
+                    fontSize = 10.sp,
+                    color = activeColor.copy(alpha = 0.75f)
+                )
+                Text(
+                    text = formatMediaTime(durationMs),
+                    fontSize = 10.sp,
+                    color = activeColor.copy(alpha = 0.55f)
+                )
+            }
         }
     }
+}
+
+internal fun formatMediaTime(ms: Int): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    return String.format("%d:%02d", totalSeconds / 60, totalSeconds % 60)
 }

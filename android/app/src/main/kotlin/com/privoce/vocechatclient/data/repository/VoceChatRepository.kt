@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.io.File
 
 enum class ConnectionStatus {
     DISCONNECTED,
@@ -364,6 +365,94 @@ class VoceChatRepository(context: Context) {
                 _messages.value = updatedMap
             }
         }
+    }
+
+    /**
+     * Uploads a local file and sends it as a file message.
+     * The server automatically fills in `name`, `content_type` and `size` properties.
+     */
+    fun sendAttachment(
+        chatType: String,
+        id: Int,
+        file: File,
+        mimeType: String,
+        displayName: String,
+        extraProperties: Map<String, Any> = emptyMap()
+    ) {
+        scope.launch {
+            val key = "${chatType}_$id"
+            val localMid = "local_${System.currentTimeMillis()}"
+            val pendingMsg = ChatMessage(
+                mid = System.currentTimeMillis(),
+                localMid = localMid,
+                fromUid = preferences.currentUserId,
+                gid = if (chatType == "channel") id else null,
+                dmUid = if (chatType == "dm") id else null,
+                content = "正在上传…",
+                contentType = "text/plain",
+                status = MessageStatus.SENDING,
+                properties = mapOf("name" to displayName)
+            )
+
+            val currentMap = _messages.value.toMutableMap()
+            val list = (currentMap[key] ?: emptyList()).toMutableList()
+            list.add(pendingMsg)
+            currentMap[key] = list
+            _messages.value = currentMap
+
+            val uploadResult = apiClient.uploadFile(file, mimeType, displayName)
+            uploadResult.onFailure { e ->
+                Log.e(TAG, "uploadAttachment failed", e)
+                failPendingMessage(key, localMid, displayName)
+            }
+            uploadResult.onSuccess { path ->
+                val properties = mutableMapOf<String, Any>(
+                    "name" to displayName,
+                    "content_type" to mimeType,
+                    "size" to file.length()
+                )
+                properties.putAll(extraProperties)
+
+                val sendResult = if (chatType == "channel") {
+                    apiClient.sendChannelFile(id, path, properties)
+                } else {
+                    apiClient.sendDirectFile(id, path, properties)
+                }
+
+                sendResult.onSuccess { serverMid ->
+                    val updatedMap = _messages.value.toMutableMap()
+                    val updatedList = (updatedMap[key] ?: emptyList()).map {
+                        if (it.localMid == localMid) {
+                            it.copy(
+                                mid = serverMid,
+                                content = path,
+                                contentType = "vocechat/file",
+                                status = MessageStatus.SUCCESS,
+                                properties = properties
+                            )
+                        } else it
+                    }
+                    updatedMap[key] = updatedList
+                    _messages.value = updatedMap
+                }.onFailure { e ->
+                    Log.e(TAG, "sendAttachment failed", e)
+                    failPendingMessage(key, localMid, displayName)
+                }
+            }
+
+            file.delete()
+        }
+    }
+
+    private fun failPendingMessage(key: String, localMid: String, displayName: String) {
+        val updatedMap = _messages.value.toMutableMap()
+        val updatedList = (updatedMap[key] ?: emptyList()).map {
+            if (it.localMid == localMid) {
+                it.copy(content = "发送失败：$displayName", status = MessageStatus.FAILED)
+            } else it
+        }
+        updatedMap[key] = updatedList
+        _messages.value = updatedMap
     }
 
     suspend fun createChannel(name: String, description: String?, isPublic: Boolean): Result<Int> {

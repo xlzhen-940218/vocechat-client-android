@@ -36,30 +36,41 @@ data class ChatMessage(
     val isDirectMessage: Boolean
         get() = dmUid != null && dmUid > 0
 
+    private val innerContentType: String?
+        get() = if (contentType == "vocechat/file") properties?.get("content_type")?.toString() else null
+
     val isImage: Boolean
-        get() {
-            if (contentType.startsWith("image/")) return true
-            if (contentType == "vocechat/file") {
-                val innerType = properties?.get("content_type") as? String
-                return innerType?.startsWith("image/") == true
-            }
-            return false
-        }
+        get() = contentType.startsWith("image/") || innerContentType?.startsWith("image/") == true
 
     val isAudio: Boolean
-        get() = contentType.startsWith("audio/") || contentType == "vocechat/audio"
+        get() = contentType.startsWith("audio/") ||
+            contentType == "vocechat/audio" ||
+            innerContentType?.startsWith("audio/") == true
+
+    val isVideo: Boolean
+        get() = contentType.startsWith("video/") || innerContentType?.startsWith("video/") == true
 
     val isFile: Boolean
-        get() = !isImage && (contentType == "vocechat/file" || contentType == "application/octet-stream")
+        get() = !isImage && !isAudio && !isVideo &&
+            (contentType == "vocechat/file" || contentType == "application/octet-stream")
 
     val isMarkdown: Boolean
         get() = contentType == "text/markdown"
+
+    val fileName: String
+        get() = properties?.get("name")?.toString() ?: content.substringAfterLast("/")
+
+    val durationSeconds: Int
+        get() = (properties?.get("duration") as? Number)?.toInt()
+            ?: properties?.get("duration")?.toString()?.toIntOrNull()
+            ?: 0
 
     val previewText: String
         get() = when {
             isImage -> "[图片]"
             isAudio -> "[语音]"
-            isFile -> "[文件] ${properties?.get("name") ?: content.substringAfterLast("/")}"
+            isVideo -> "[视频] ${fileName}"
+            isFile -> "[文件] $fileName"
             else -> content
         }
 }

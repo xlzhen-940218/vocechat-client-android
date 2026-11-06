@@ -1,9 +1,16 @@
 package com.privoce.vocechatclient.ui.screens.chat
 
+import android.Manifest
+import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -27,9 +34,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -39,13 +48,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.privoce.vocechatclient.data.models.ChatMessage
 import com.privoce.vocechatclient.data.models.MessageStatus
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import com.privoce.vocechatclient.ui.components.VoceAvatar
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -82,13 +94,117 @@ fun ChatScreen(
 
     val key = "${chatType}_$chatId"
     val messageList = messagesMap[key] ?: emptyList()
+    val imageMessages = remember(messageList) { messageList.filter { it.isImage } }
 
     var inputText by remember { mutableStateOf("") }
     var replyingMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var selectedMessageForOptions by remember { mutableStateOf<ChatMessage?>(null) }
-    var previewImageUrl by remember { mutableStateOf<String?>(null) }
+    var previewTarget by remember { mutableStateOf<ChatMessage?>(null) }
+    var showExtras by remember { mutableStateOf(false) }
+    var showEmoji by remember { mutableStateOf(false) }
+    var isRecording by remember { mutableStateOf(false) }
+    var recordStartAt by remember { mutableLongStateOf(0L) }
+    var recordElapsed by remember { mutableIntStateOf(0) }
 
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val voiceRecorder = remember { VoiceRecorder(context) }
+
+    var hasRecordPermission by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
+        )
+    }
+    val recordPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        hasRecordPermission = granted
+        if (!granted) {
+            Toast.makeText(context, "需要麦克风权限才能发送语音", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun sendPickedFile(uri: Uri, fallbackMime: String = "application/octet-stream") {
+        val mime = context.contentResolver.getType(uri) ?: fallbackMime
+        val name = getDisplayName(context, uri)
+        val file = copyUriToCache(context, uri, name) ?: return
+        repository.sendAttachment(chatType, chatId, file, mime, name)
+    }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(9)
+    ) { uris ->
+        uris.forEach { uri -> sendPickedFile(uri, "image/*") }
+    }
+    val videoPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        uri?.let { sendPickedFile(it, "video/mp4") }
+    }
+    val documentPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { sendPickedFile(it) }
+    }
+
+    fun startRecording(): Boolean {
+        if (!hasRecordPermission) {
+            recordPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+            return false
+        }
+        if (!voiceRecorder.start()) {
+            Toast.makeText(context, "无法开始录音", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        isRecording = true
+        recordStartAt = System.currentTimeMillis()
+        recordElapsed = 0
+        return true
+    }
+
+    fun stopRecording() {
+        if (!voiceRecorder.isActive) return
+        val result = voiceRecorder.stop()
+        isRecording = false
+        if (result == null) {
+            Toast.makeText(context, "录音失败", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (result.durationMs < 800) {
+            result.file.delete()
+            Toast.makeText(context, "说话时间太短", Toast.LENGTH_SHORT).show()
+            return
+        }
+        repository.sendAttachment(
+            chatType = chatType,
+            id = chatId,
+            file = result.file,
+            mimeType = "audio/mp4",
+            displayName = "voice_${System.currentTimeMillis()}.m4a",
+            extraProperties = mapOf("duration" to (result.durationMs / 1000).toInt())
+        )
+    }
+
+    fun cancelRecording() {
+        voiceRecorder.cancel()
+        isRecording = false
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { voiceRecorder.cancel() }
+    }
+
+    LaunchedEffect(isRecording) {
+        while (isRecording) {
+            recordElapsed = ((System.currentTimeMillis() - recordStartAt) / 1000).toInt()
+            if (recordElapsed >= 60) {
+                stopRecording()
+                break
+            }
+            delay(200)
+        }
+    }
 
     fun openFile(filePath: String) {
         try {
@@ -195,44 +311,28 @@ fun ChatScreen(
         }
     }
 
-    // Fullscreen Image Preview Dialog
-    previewImageUrl?.let { imageUrl ->
-        Dialog(
-            onDismissRequest = { previewImageUrl = null },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black)
-            ) {
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(imageUrl)
-                        .crossfade(true)
-                        .build(),
-                    contentDescription = "查看大图",
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable { previewImageUrl = null }
-                )
+    // Fullscreen image preview with zoom & paging across all chat images
+    previewTarget?.let { target ->
+        val isSameMessage = { msg: ChatMessage ->
+            (msg.mid != 0L && msg.mid == target.mid) ||
+                (msg.localMid.isNotBlank() && msg.localMid == target.localMid)
+        }
+        val previewImages = imageMessages.takeIf { list -> list.any(isSameMessage) } ?: listOf(target)
+        val startIndex = previewImages.indexOfFirst(isSameMessage).coerceAtLeast(0)
 
-                IconButton(
-                    onClick = { previewImageUrl = null },
-                    modifier = Modifier
-                        .statusBarsPadding()
-                        .padding(16.dp)
-                        .align(Alignment.TopStart)
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                ) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "关闭预览",
-                        tint = Color.White
-                    )
-                }
-            }
+        Dialog(
+            onDismissRequest = { previewTarget = null },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            ImagePreviewScreen(
+                images = previewImages,
+                initialIndex = startIndex,
+                repository = repository,
+                onClose = { previewTarget = null }
+            )
         }
     }
 
@@ -325,7 +425,7 @@ fun ChatScreen(
                         senderAvatarUrl = repository.apiClient.getUserAvatarUrl(msg.fromUid, sender?.avatarUpdatedAt),
                         senderIsBot = sender?.isBot == true,
                         onLongClick = { selectedMessageForOptions = msg },
-                        onPreviewImage = { url -> previewImageUrl = url },
+                        onPreviewImage = { target -> previewTarget = target },
                         onOpenFile = { path -> openFile(path) },
                         repository = repository
                     )
@@ -374,62 +474,169 @@ fun ChatScreen(
                 }
             }
 
-            // Input Bar
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 2.dp,
+            // Recording indicator
+            AnimatedVisibility(visible = isRecording) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.error)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "正在录音 ${recordElapsed}s",
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onErrorContainer
+                        )
+                        Spacer(modifier = Modifier.weight(1f))
+                        Text(
+                            text = "上滑取消，松开发送",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
+
+            // Input Bar + attachment / emoji panels
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    IconButton(
-                        onClick = { /* File/Image Attachment */ },
-                        modifier = Modifier.size(40.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            Icons.Default.AddCircleOutline,
-                            contentDescription = "添加附件",
-                            tint = MaterialTheme.colorScheme.primary
+                        IconButton(
+                            onClick = {
+                                showExtras = !showExtras
+                                if (showExtras) {
+                                    showEmoji = false
+                                    keyboardController?.hide()
+                                }
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (showExtras || showEmoji) Icons.Default.Close else Icons.Default.AddCircleOutline,
+                                contentDescription = "添加附件",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            placeholder = { Text("输入消息...", fontSize = 14.sp) },
+                            maxLines = 4,
+                            shape = RoundedCornerShape(22.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary
+                            ),
+                            modifier = Modifier
+                                .weight(1f)
+                                .onFocusChanged {
+                                    if (it.isFocused) {
+                                        showExtras = false
+                                        showEmoji = false
+                                    }
+                                }
                         )
+
+                        IconButton(
+                            onClick = {
+                                showEmoji = !showEmoji
+                                showExtras = showEmoji
+                                if (showEmoji) keyboardController?.hide()
+                            },
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.EmojiEmotions,
+                                contentDescription = "表情",
+                                tint = if (showEmoji) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        if (inputText.isNotBlank()) {
+                            IconButton(
+                                onClick = { sendMessage() },
+                                colors = IconButtonDefaults.filledIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.Send,
+                                    contentDescription = "发送",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        } else {
+                            VoiceRecordButton(
+                                recording = isRecording,
+                                onStart = { startRecording() },
+                                onStop = { stopRecording() },
+                                onCancel = { cancelRecording() }
+                            )
+                        }
                     }
+                }
 
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        placeholder = { Text("输入消息...", fontSize = 14.sp) },
-                        maxLines = 4,
-                        shape = RoundedCornerShape(22.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedBorderColor = MaterialTheme.colorScheme.primary
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    IconButton(
-                        onClick = { sendMessage() },
-                        enabled = inputText.isNotBlank(),
-                        colors = IconButtonDefaults.filledIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                            disabledContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                        ),
-                        modifier = Modifier.size(40.dp)
+                AnimatedVisibility(visible = showEmoji) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 2.dp,
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "发送",
-                            modifier = Modifier.size(18.dp)
+                        EmojiPanel(onEmojiSelected = { emoji -> inputText += emoji })
+                    }
+                }
+
+                AnimatedVisibility(visible = showExtras && !showEmoji) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surface,
+                        tonalElevation = 2.dp,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        AttachmentPanel(
+                            onPickImages = {
+                                showExtras = false
+                                imagePicker.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
+                            },
+                            onPickVideo = {
+                                showExtras = false
+                                videoPicker.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                )
+                            },
+                            onPickDocument = {
+                                showExtras = false
+                                documentPicker.launch(arrayOf("*/*"))
+                            }
                         )
                     }
                 }
@@ -447,7 +654,7 @@ private fun MessageBubbleItem(
     senderAvatarUrl: String?,
     senderIsBot: Boolean = false,
     onLongClick: () -> Unit,
-    onPreviewImage: (String) -> Unit,
+    onPreviewImage: (ChatMessage) -> Unit,
     onOpenFile: (String) -> Unit,
     repository: VoceChatRepository
 ) {
@@ -509,8 +716,8 @@ private fun MessageBubbleItem(
                 modifier = Modifier.combinedClickable(
                     onClick = {
                         if (message.isImage) {
-                            onPreviewImage(repository.apiClient.getFileUrl(message.content))
-                        } else if (message.isFile) {
+                            onPreviewImage(message)
+                        } else if (message.isVideo || message.isFile) {
                             onOpenFile(message.content)
                         }
                     },
@@ -555,7 +762,7 @@ private fun MessageBubbleItem(
 
                                 if (repliedMsg != null) {
                                     if (repliedMsg.isImage) {
-                                        val imgUrl = repository.apiClient.getFileUrl(repliedMsg.content)
+                                        val imgUrl = repository.apiClient.getFileUrl(repliedMsg.content, thumbnail = true)
                                         AsyncImage(
                                             model = ImageRequest.Builder(LocalContext.current)
                                                 .data(imgUrl)
@@ -567,22 +774,28 @@ private fun MessageBubbleItem(
                                                 .fillMaxWidth()
                                                 .height(130.dp)
                                                 .clip(RoundedCornerShape(6.dp))
-                                                .clickable { onPreviewImage(imgUrl) }
+                                                .clickable { onPreviewImage(repliedMsg) }
                                         )
-                                    } else if (repliedMsg.isFile) {
+                                    } else if (repliedMsg.isAudio) {
+                                        Text(
+                                            text = repliedMsg.previewText,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    } else if (repliedMsg.isVideo || repliedMsg.isFile) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.clickable { onOpenFile(repliedMsg.content) }
                                         ) {
                                             Icon(
-                                                Icons.Default.AttachFile,
+                                                if (repliedMsg.isVideo) Icons.Default.Videocam else Icons.Default.AttachFile,
                                                 contentDescription = null,
                                                 tint = MaterialTheme.colorScheme.primary,
                                                 modifier = Modifier.size(14.dp)
                                             )
                                             Spacer(modifier = Modifier.width(4.dp))
                                             Text(
-                                                text = repliedMsg.properties?.get("name")?.toString() ?: repliedMsg.content.substringAfterLast("/"),
+                                                text = repliedMsg.fileName,
                                                 style = MaterialTheme.typography.bodySmall,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
@@ -610,7 +823,7 @@ private fun MessageBubbleItem(
 
                     // Message Content
                     if (message.isImage) {
-                        val imageUrl = repository.apiClient.getFileUrl(message.content)
+                        val imageUrl = repository.apiClient.getFileUrl(message.content, thumbnail = true)
                         AsyncImage(
                             model = ImageRequest.Builder(LocalContext.current)
                                 .data(imageUrl)
@@ -622,8 +835,29 @@ private fun MessageBubbleItem(
                                 .fillMaxWidth()
                                 .heightIn(min = 140.dp, max = 260.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { onPreviewImage(imageUrl) }
+                                .clickable { onPreviewImage(message) }
                         )
+                    } else if (message.isAudio) {
+                        AudioMessageBubble(
+                            url = repository.apiClient.getFileUrl(message.content),
+                            isSelf = isSelf,
+                            durationSeconds = message.durationSeconds
+                        )
+                    } else if (message.isVideo) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .padding(vertical = 4.dp)
+                                .clickable { onOpenFile(message.content) }
+                        ) {
+                            Icon(Icons.Default.Videocam, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = message.fileName,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     } else if (message.isFile) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -634,7 +868,7 @@ private fun MessageBubbleItem(
                             Icon(Icons.Default.AttachFile, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = message.properties?.get("name")?.toString() ?: message.content.substringAfterLast("/"),
+                                text = message.fileName,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium
                             )
@@ -728,6 +962,39 @@ private fun MessageBubbleItem(
                 }
             }
         }
+    }
+}
+
+private fun getDisplayName(context: Context, uri: Uri): String {
+    var name: String? = null
+    if (uri.scheme == "content") {
+        context.contentResolver
+            .query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (index >= 0) name = cursor.getString(index)
+                }
+            }
+    }
+    if (name.isNullOrBlank()) {
+        name = uri.lastPathSegment ?: "file_${System.currentTimeMillis()}"
+    }
+    return name
+}
+
+private fun copyUriToCache(context: Context, uri: Uri, displayName: String): File? {
+    return try {
+        val safeName = displayName.substringAfterLast('/').substringAfterLast('\\')
+        val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}_$safeName")
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            file.outputStream().use { output -> input.copyTo(output) }
+        } ?: return null
+        file
+    } catch (e: Exception) {
+        Log.e("ChatScreen", "Failed to copy picked file", e)
+        Toast.makeText(context, "读取文件失败", Toast.LENGTH_SHORT).show()
+        null
     }
 }
 

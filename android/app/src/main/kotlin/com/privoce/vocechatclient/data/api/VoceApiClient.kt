@@ -392,106 +392,89 @@ class VoceApiClient(
         }
     }
 
+    private suspend fun postMessageContent(
+        path: String,
+        content: String,
+        contentType: String,
+        properties: Map<String, Any>
+    ): Result<Long> = withContext(Dispatchers.IO) {
+        try {
+            val propJson = gson.toJson(properties)
+            val propBase64 = Base64.encodeToString(propJson.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+
+            val body = content.toByteArray(Charsets.UTF_8).toRequestBody(contentType.toMediaType())
+            val request = newRequestBuilder(path)
+                .header("content-type", contentType)
+                .header("x-properties", propBase64)
+                .post(body)
+                .build()
+
+            Log.d(TAG, "postMessageContent request to: ${request.url}")
+            client.newCall(request).execute().use { response ->
+                val resBody = response.body?.string() ?: ""
+                Log.d(TAG, "postMessageContent code=${response.code}, body=$resBody")
+                if (response.isSuccessful) {
+                    val mid = resBody.trim().toLongOrNull() ?: System.currentTimeMillis()
+                    Result.success(mid)
+                } else {
+                    Result.failure(IOException("Failed to send message: ${response.code} ($resBody)"))
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "postMessageContent exception", e)
+            Result.failure(e)
+        }
+    }
+
     suspend fun replyMessage(targetMid: Long, content: String): Result<Long> =
-        withContext(Dispatchers.IO) {
-            try {
-                val properties = mapOf("cid" to "client_${System.currentTimeMillis()}")
-                val propJson = gson.toJson(properties)
-                val propBase64 = Base64.encodeToString(propJson.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        postMessageContent(
+            path = "/message/$targetMid/reply",
+            content = content,
+            contentType = "text/plain",
+            properties = mapOf("cid" to "client_${System.currentTimeMillis()}")
+        )
 
-                val body = content.toByteArray(Charsets.UTF_8).toRequestBody("text/plain".toMediaType())
-                val request = newRequestBuilder("/message/$targetMid/reply")
-                    .header("content-type", "text/plain")
-                    .header("x-properties", propBase64)
-                    .post(body)
-                    .build()
+    suspend fun sendChannelMessage(gid: Int, content: String, replyToMid: Long? = null): Result<Long> {
+        if (replyToMid != null && replyToMid > 0) return replyMessage(replyToMid, content)
+        return postMessageContent(
+            path = "/group/$gid/send",
+            content = content,
+            contentType = "text/plain",
+            properties = mapOf("cid" to "client_${System.currentTimeMillis()}")
+        )
+    }
 
-                Log.d("VoceApiClient", "replyMessage request to: ${request.url}")
-                client.newCall(request).execute().use { response ->
-                    val resBody = response.body?.string() ?: ""
-                    Log.d("VoceApiClient", "replyMessage code=${response.code}, body=$resBody")
-                    if (response.isSuccessful) {
-                        val mid = resBody.trim().toLongOrNull() ?: System.currentTimeMillis()
-                        Result.success(mid)
-                    } else {
-                        Result.failure(IOException("Failed to reply: ${response.code} ($resBody)"))
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("VoceApiClient", "replyMessage exception", e)
-                Result.failure(e)
-            }
-        }
+    suspend fun sendDirectMessage(dmUid: Int, content: String, replyToMid: Long? = null): Result<Long> {
+        if (replyToMid != null && replyToMid > 0) return replyMessage(replyToMid, content)
+        return postMessageContent(
+            path = "/user/$dmUid/send",
+            content = content,
+            contentType = "text/plain",
+            properties = mapOf("cid" to "client_${System.currentTimeMillis()}")
+        )
+    }
 
-    suspend fun sendChannelMessage(gid: Int, content: String, replyToMid: Long? = null): Result<Long> =
-        withContext(Dispatchers.IO) {
-            try {
-                if (replyToMid != null && replyToMid > 0) {
-                    return@withContext replyMessage(replyToMid, content)
-                }
-                val properties = mapOf("cid" to "client_${System.currentTimeMillis()}")
-                val propJson = gson.toJson(properties)
-                val propBase64 = Base64.encodeToString(propJson.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+    suspend fun sendChannelFile(
+        gid: Int,
+        filePath: String,
+        properties: Map<String, Any>,
+        replyToMid: Long? = null
+    ): Result<Long> {
+        val body = gson.toJson(mapOf("path" to filePath))
+        val path = if (replyToMid != null && replyToMid > 0) "/message/$replyToMid/reply" else "/group/$gid/send"
+        return postMessageContent(path, body, "vocechat/file", properties)
+    }
 
-                val body = content.toByteArray(Charsets.UTF_8).toRequestBody("text/plain".toMediaType())
-                val request = newRequestBuilder("/group/$gid/send")
-                    .header("content-type", "text/plain")
-                    .header("x-properties", propBase64)
-                    .post(body)
-                    .build()
-
-                Log.d("VoceApiClient", "sendChannelMessage request to: ${request.url}")
-                client.newCall(request).execute().use { response ->
-                    val resBody = response.body?.string() ?: ""
-                    Log.d("VoceApiClient", "sendChannelMessage code=${response.code}, body=$resBody")
-                    if (response.isSuccessful) {
-                        val mid = resBody.trim().toLongOrNull() ?: System.currentTimeMillis()
-                        Result.success(mid)
-                    } else {
-                        Result.failure(IOException("Failed to send message: ${response.code} ($resBody)"))
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("VoceApiClient", "sendChannelMessage exception", e)
-                Result.failure(e)
-            }
-        }
-
-    suspend fun sendDirectMessage(dmUid: Int, content: String, replyToMid: Long? = null): Result<Long> =
-        withContext(Dispatchers.IO) {
-            try {
-                if (replyToMid != null && replyToMid > 0) {
-                    return@withContext replyMessage(replyToMid, content)
-                }
-                val properties = mutableMapOf<String, Any>(
-                    "cid" to "client_${System.currentTimeMillis()}"
-                )
-                val propJson = gson.toJson(properties)
-                val propBase64 = Base64.encodeToString(propJson.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-
-                val body = content.toByteArray(Charsets.UTF_8).toRequestBody("text/plain".toMediaType())
-                val request = newRequestBuilder("/user/$dmUid/send")
-                    .header("content-type", "text/plain")
-                    .header("x-properties", propBase64)
-                    .post(body)
-                    .build()
-
-                Log.d("VoceApiClient", "sendDirectMessage request to: ${request.url}")
-                client.newCall(request).execute().use { response ->
-                    val resBody = response.body?.string() ?: ""
-                    Log.d("VoceApiClient", "sendDirectMessage code=${response.code}, body=$resBody")
-                    if (response.isSuccessful) {
-                        val mid = resBody.trim().toLongOrNull() ?: System.currentTimeMillis()
-                        Result.success(mid)
-                    } else {
-                        Result.failure(IOException("Failed to send direct message: ${response.code} ($resBody)"))
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("VoceApiClient", "sendDirectMessage exception", e)
-                Result.failure(e)
-            }
-        }
+    suspend fun sendDirectFile(
+        dmUid: Int,
+        filePath: String,
+        properties: Map<String, Any>,
+        replyToMid: Long? = null
+    ): Result<Long> {
+        val body = gson.toJson(mapOf("path" to filePath))
+        val path = if (replyToMid != null && replyToMid > 0) "/message/$replyToMid/reply" else "/user/$dmUid/send"
+        return postMessageContent(path, body, "vocechat/file", properties)
+    }
 
     suspend fun createChannel(req: CreateGroupRequest): Result<Int> = withContext(Dispatchers.IO) {
         try {
@@ -517,33 +500,65 @@ class VoceApiClient(
         }
     }
 
-    suspend fun uploadFile(file: File, mimeType: String): Result<String> = withContext(Dispatchers.IO) {
-        try {
-            val requestBody = MultipartBody.Builder()
-                .setType(MultipartBody.FORM)
-                .addFormDataPart(
-                    "file",
-                    file.name,
-                    file.asRequestBody(mimeType.toMediaType())
-                )
-                .build()
+    suspend fun uploadFile(file: File, mimeType: String, filename: String = file.name): Result<String> =
+        withContext(Dispatchers.IO) {
+            try {
+                // Step 1: prepare upload, returns a file id (uuid)
+                val prepareBody = gson.toJson(mapOf("content_type" to mimeType, "filename" to filename))
+                val prepareRequest = newRequestBuilder("/resource/file/prepare")
+                    .header("Content-Type", "application/json")
+                    .post(prepareBody.toRequestBody("application/json".toMediaType()))
+                    .build()
 
-            val request = newRequestBuilder("/resource/file")
-                .post(requestBody)
-                .build()
-
-            client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: ""
-                if (response.isSuccessful) {
-                    Result.success(body.trim().trim('"'))
-                } else {
-                    Result.failure(IOException("Failed to upload file: ${response.code}"))
+                val fileId = client.newCall(prepareRequest).execute().use { response ->
+                    val body = response.body?.string() ?: ""
+                    if (!response.isSuccessful) {
+                        return@withContext Result.failure(
+                            IOException("Failed to prepare upload: ${response.code} ($body)")
+                        )
+                    }
+                    body.trim().trim('"')
                 }
+                if (fileId.isBlank()) {
+                    return@withContext Result.failure(IOException("Empty file id"))
+                }
+
+                // Step 2: upload the file content in one final chunk
+                val uploadBody = MultipartBody.Builder()
+                    .setType(MultipartBody.FORM)
+                    .addFormDataPart("file_id", fileId)
+                    .addFormDataPart("chunk_data", filename, file.asRequestBody(mimeType.toMediaType()))
+                    .addFormDataPart("chunk_is_last", "true")
+                    .build()
+
+                val uploadRequest = newRequestBuilder("/resource/file/upload")
+                    .post(uploadBody)
+                    .build()
+
+                client.newCall(uploadRequest).execute().use { response ->
+                    val body = response.body?.string() ?: ""
+                    if (!response.isSuccessful) {
+                        return@withContext Result.failure(
+                            IOException("Failed to upload file: ${response.code} ($body)")
+                        )
+                    }
+                    val path = JsonParser.parseString(body)
+                        .takeIf { it.isJsonObject }
+                        ?.asJsonObject
+                        ?.get("path")
+                        ?.asString
+                        ?: body.trim().trim('"')
+                    if (path.isBlank()) {
+                        Result.failure(IOException("Upload response missing path: $body"))
+                    } else {
+                        Result.success(path)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "uploadFile exception", e)
+                Result.failure(e)
             }
-        } catch (e: Exception) {
-            Result.failure(e)
         }
-    }
 
     suspend fun reactMessage(mid: Long, action: String): Result<Unit> = withContext(Dispatchers.IO) {
         try {
@@ -592,8 +607,9 @@ class VoceApiClient(
         return if (!token.isNullOrBlank()) "$url&api-key=$token" else url
     }
 
-    fun getFileUrl(filePath: String): String {
-        val url = buildUrl("/resource/file?file_path=${Uri.encode(filePath)}")
+    fun getFileUrl(filePath: String, thumbnail: Boolean = false): String {
+        var url = buildUrl("/resource/file?file_path=${Uri.encode(filePath)}")
+        if (thumbnail) url += "&thumbnail=true"
         return if (!token.isNullOrBlank()) "$url&api-key=$token" else url
     }
 

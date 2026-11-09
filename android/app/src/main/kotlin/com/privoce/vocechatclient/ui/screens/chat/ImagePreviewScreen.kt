@@ -1,9 +1,14 @@
 package com.privoce.vocechatclient.ui.screens.chat
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
+import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
@@ -29,6 +34,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -80,8 +86,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -125,6 +129,10 @@ fun MediaPreviewScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { /* consume background clicks */ }
     ) {
         HorizontalPager(
             state = pagerState,
@@ -155,6 +163,7 @@ fun MediaPreviewScreen(
         IconButton(
             onClick = onClose,
             modifier = Modifier
+                .displayCutoutPadding()
                 .statusBarsPadding()
                 .padding(12.dp)
                 .align(Alignment.TopEnd)
@@ -358,8 +367,12 @@ private fun ZoomableImage(
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
+    var isLoading by remember { mutableStateOf(true) }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
         val viewWidth = constraints.maxWidth.toFloat()
         val viewHeight = constraints.maxHeight.toFloat()
 
@@ -370,6 +383,9 @@ private fun ZoomableImage(
                 .build(),
             contentDescription = stringResource(R.string.action_view_image),
             contentScale = ContentScale.Fit,
+            onLoading = { isLoading = true },
+            onSuccess = { isLoading = false },
+            onError = { isLoading = false },
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
@@ -433,6 +449,14 @@ private fun ZoomableImage(
                     )
                 }
         )
+
+        if (isLoading) {
+            CircularProgressIndicator(
+                color = Color.White,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(36.dp)
+            )
+        }
     }
 }
 
@@ -467,85 +491,88 @@ fun PdfPreviewDialog(
         failed = count == null
     }
 
-    Dialog(
-        onDismissRequest = onClose,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
+    BackHandler(onBack = onClose)
+    ImmersiveSystemBars()
+
+    Surface(
+        color = Color(0xFF1B1B1B),
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { /* consume background clicks */ }
     ) {
-        Surface(color = Color(0xFF1B1B1B), modifier = Modifier.fillMaxSize()) {
-            ImmersiveSystemBars()
-            Column(
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
+                    .fillMaxWidth()
+                    .displayCutoutPadding()
+                    .padding(horizontal = 8.dp, vertical = 8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 8.dp)
-                ) {
-                    IconButton(onClick = onClose) {
-                        Icon(
-                            Icons.Default.Close,
-                            contentDescription = stringResource(R.string.action_close_preview),
-                            tint = Color.White
-                        )
-                    }
-                    Text(
-                        text = title,
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 12.dp)
+                IconButton(onClick = onClose) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = stringResource(R.string.action_close_preview),
+                        tint = Color.White
                     )
-                    pageCount?.let { count ->
-                        Text(
-                            text = "$count",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                    }
+                }
+                Text(
+                    text = title,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 12.dp)
+                )
+                pageCount?.let { count ->
+                    Text(
+                        text = "$count",
+                        color = Color.White.copy(alpha = 0.7f),
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                }
+            }
+
+            val count = pageCount
+            when {
+                failed -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = stringResource(R.string.chat_pdf_preview_failed),
+                        color = Color.White
+                    )
                 }
 
-                val count = pageCount
-                when {
-                    failed -> Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.chat_pdf_preview_failed),
-                            color = Color.White
+                count == null -> Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = Color.White)
+                }
+
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(count) { index ->
+                        PdfPageItem(
+                            file = file,
+                            pageIndex = index,
+                            targetWidthPx = targetWidthPx
                         )
-                    }
-
-                    count == null -> Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Color.White)
-                    }
-
-                    else -> LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(count) { index ->
-                            PdfPageItem(
-                                file = file,
-                                pageIndex = index,
-                                targetWidthPx = targetWidthPx
-                            )
-                        }
                     }
                 }
             }
@@ -608,50 +635,62 @@ private fun PdfPageItem(
     }
 }
 
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
+private fun findWindow(context: Context, view: View): Window? {
+    var v: View? = view
+    while (v != null) {
+        if (v is DialogWindowProvider) {
+            return v.window
+        }
+        val parent = v.parent
+        v = parent as? View
+    }
+    return context.findActivity()?.window
+}
+
 /**
  * 预览页沉浸式全屏：
- * 1. 强制 Dialog 窗口铺满整个屏幕（默认不会被状态栏区域裁掉）；
- * 2. 隐藏状态栏与导航栏，从边缘滑动可临时唤出；
- * 3. 关闭预览时恢复系统栏，避免影响聊天等其他页面。
+ * 1. 适配异形屏（刘海屏/挖孔屏），允许绘制到 cutout 区域；
+ * 2. 隐藏状态栏与导航栏，边缘滑动可临时唤出；
+ * 3. 强制状态栏和导航栏文字图标为浅色（暗底）；
+ * 4. 退出预览时无缝恢复原始状态栏/导航栏显示与样式。
  */
 @Composable
 private fun ImmersiveSystemBars() {
     val view = LocalView.current
-    DisposableEffect(view) {
-        var appliedWindow: Window? = null
-        var appliedController: WindowInsetsControllerCompat? = null
+    val context = LocalContext.current
+    DisposableEffect(view, context) {
+        val window = findWindow(context, view) ?: return@DisposableEffect onDispose {}
 
-        fun applyTo(window: Window) {
-            if (appliedWindow != null) return
-            appliedWindow = window
-            // Dialog 窗口默认会避开状态栏，这里允许内容绘制到系统栏下方并铺满屏幕
-            WindowCompat.setDecorFitsSystemWindows(window, false)
-            window.addFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
-            window.setLayout(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-            val controller = WindowCompat.getInsetsController(window, view)
-            controller.systemBarsBehavior =
-                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            controller.hide(WindowInsetsCompat.Type.systemBars())
-            appliedController = controller
-        }
-
-        // Dialog 刚创建时视图可能还未挂到窗口上，找不到时等一帧再试
-        val dialogWindow = (view.rootView as? DialogWindowProvider)?.window
-        if (dialogWindow != null) {
-            applyTo(dialogWindow)
-        } else {
-            view.post {
-                val window = (view.rootView as? DialogWindowProvider)?.window ?: return@post
-                applyTo(window)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
             }
         }
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        val originalBehavior = controller.systemBarsBehavior
+        val originalLightStatus = controller.isAppearanceLightStatusBars
+        val originalLightNav = controller.isAppearanceLightNavigationBars
+
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.isAppearanceLightStatusBars = false
+        controller.isAppearanceLightNavigationBars = false
+        controller.hide(WindowInsetsCompat.Type.systemBars())
 
         onDispose {
-            appliedWindow?.clearFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS)
-            appliedController?.show(WindowInsetsCompat.Type.systemBars())
+            controller.isAppearanceLightStatusBars = originalLightStatus
+            controller.isAppearanceLightNavigationBars = originalLightNav
+            controller.systemBarsBehavior = originalBehavior
+            controller.show(WindowInsetsCompat.Type.systemBars())
         }
     }
 }

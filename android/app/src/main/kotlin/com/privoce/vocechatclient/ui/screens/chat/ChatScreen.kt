@@ -516,60 +516,9 @@ fun ChatScreen(
         }
     }
 
-    // Fullscreen image preview with zoom & paging across all chat images
-    previewTarget?.let { target ->
-        val isSameMessage = { msg: ChatMessage ->
-            (msg.mid != 0L && msg.mid == target.mid) ||
-                (msg.localMid.isNotBlank() && msg.localMid == target.localMid)
-        }
-        val previewItems = mediaMessages.takeIf { list -> list.any(isSameMessage) } ?: listOf(target)
-        val startIndex = previewItems.indexOfFirst(isSameMessage).coerceAtLeast(0)
-
-        Dialog(
-            onDismissRequest = { previewTarget = null },
-            properties = DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false
-            )
-        ) {
-            MediaPreviewScreen(
-                items = previewItems,
-                initialIndex = startIndex,
-                repository = repository,
-                onClose = { previewTarget = null }
-            )
-        }
-    }
-
-    // 内置 PDF 预览
-    pdfPreviewFile?.let { file ->
-        PdfPreviewDialog(
-            file = file,
-            title = file.name,
-            onClose = { pdfPreviewFile = null }
-        )
-    }
-
-    if (pdfPreviewLoading) {
-        Dialog(
-            onDismissRequest = {},
-            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
-        ) {
-            Surface(shape = RoundedCornerShape(16.dp)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(stringResource(R.string.chat_pdf_preview_loading))
-                }
-            }
-        }
-    }
-
-    Scaffold(
-        topBar = {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = {
             TopAppBar(
                 title = {
                     if (isSearching) {
@@ -736,7 +685,10 @@ fun ChatScreen(
                             senderAvatarUrl = repository.apiClient.getUserAvatarUrl(msg.fromUid, sender?.avatarUpdatedAt),
                             senderIsBot = sender?.isBot == true,
                             onLongClick = { selectedMessageForOptions = msg },
-                            onPreviewMedia = { target -> previewTarget = target },
+                            onPreviewMedia = { target ->
+                                keyboardController?.hide()
+                                previewTarget = target
+                            },
                             onOpenFile = { path -> openFile(path) },
                             repository = repository
                         )
@@ -1029,6 +981,51 @@ fun ChatScreen(
             }
         }
     }
+
+        // Fullscreen image/media preview with zoom & paging across all chat media
+        previewTarget?.let { target ->
+            val isSameMessage = { msg: ChatMessage ->
+                (msg.mid != 0L && msg.mid == target.mid) ||
+                    (msg.localMid.isNotBlank() && msg.localMid == target.localMid)
+            }
+            val previewItems = mediaMessages.takeIf { list -> list.any(isSameMessage) } ?: listOf(target)
+            val startIndex = previewItems.indexOfFirst(isSameMessage).coerceAtLeast(0)
+
+            MediaPreviewScreen(
+                items = previewItems,
+                initialIndex = startIndex,
+                repository = repository,
+                onClose = { previewTarget = null }
+            )
+        }
+
+        // 内置 PDF 预览
+        pdfPreviewFile?.let { file ->
+            PdfPreviewDialog(
+                file = file,
+                title = file.name,
+                onClose = { pdfPreviewFile = null }
+            )
+        }
+
+        if (pdfPreviewLoading) {
+            Dialog(
+                onDismissRequest = {},
+                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+            ) {
+                Surface(shape = RoundedCornerShape(16.dp)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(stringResource(R.string.chat_pdf_preview_loading))
+                    }
+                }
+            }
+        }
+    }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -1255,7 +1252,6 @@ private fun MessageBubbleItem(
                                 .fillMaxWidth()
                                 .heightIn(min = 140.dp, max = 260.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .clickable { onPreviewMedia(message) }
                         )
                     } else if (message.isAudio) {
                         AudioMessageBubble(
@@ -1271,7 +1267,6 @@ private fun MessageBubbleItem(
                                 .height(180.dp)
                                 .clip(RoundedCornerShape(8.dp))
                                 .background(Color.Black)
-                                .clickable { onPreviewMedia(message) }
                         ) {
                             AsyncImage(
                                 model = ImageRequest.Builder(context)

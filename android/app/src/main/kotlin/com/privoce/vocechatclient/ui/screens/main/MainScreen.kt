@@ -35,6 +35,8 @@ fun MainScreen(
 
     val connectionStatus by repository.connectionStatus.collectAsState()
     val serverInfo by repository.serverInfo.collectAsState()
+    val unreadCounts by repository.unreadCounts.collectAsState()
+    val totalUnread = unreadCounts.values.sum()
 
     if (showCreateChannelDialog) {
         CreateChannelDialog(
@@ -102,10 +104,18 @@ fun MainScreen(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
                     icon = {
-                        Icon(
-                            if (selectedTab == 0) Icons.Default.ChatBubble else Icons.Default.ChatBubbleOutline,
-                            contentDescription = stringResource(R.string.tab_chats)
-                        )
+                        BadgedBox(
+                            badge = {
+                                if (totalUnread > 0) {
+                                    Badge { Text(if (totalUnread > 99) "99+" else totalUnread.toString()) }
+                                }
+                            }
+                        ) {
+                            Icon(
+                                if (selectedTab == 0) Icons.Default.ChatBubble else Icons.Default.ChatBubbleOutline,
+                                contentDescription = stringResource(R.string.tab_chats)
+                            )
+                        }
                     },
                     label = { Text(stringResource(R.string.tab_chats)) }
                 )
@@ -125,7 +135,7 @@ fun MainScreen(
                     onClick = { selectedTab = 2 },
                     icon = {
                         Icon(
-                            if (selectedTab == 2) Icons.Default.Settings else Icons.Default.SettingsSuggest,
+                            Icons.Default.Settings,
                             contentDescription = stringResource(R.string.tab_settings)
                         )
                     },

@@ -73,6 +73,10 @@
     <string name="settings_server_name">サーバー名</string>
     <string name="settings_version">バージョン</string>
     <string name="settings_appearance">外観とパーソナライズ</string>
+    <string name="settings_theme">テーマ</string>
+    <string name="settings_theme_system">システム</string>
+    <string name="settings_theme_light">ライト</string>
+    <string name="settings_theme_dark">ダーク</string>
     <string name="settings_dynamic_color">Material You のダイナミックカラー</string>
     <string name="settings_dynamic_color_desc">Android の壁紙から自動的に配色を取得します</string>
     <string name="settings_architecture">クライアントアーキテクチャ</string>

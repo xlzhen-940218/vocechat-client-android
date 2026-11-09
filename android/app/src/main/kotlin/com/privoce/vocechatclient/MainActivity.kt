@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.privoce.vocechatclient.ui.navigation.VoceChatNavGraph
 import com.privoce.vocechatclient.ui.theme.VoceChatTheme
@@ -19,7 +21,10 @@ class MainActivity : ComponentActivity() {
         val repository = (application as VoceChatApp).repository
 
         setContent {
-            val isDark = when (repository.preferences.themeMode) {
+            val themeMode by repository.preferences.themeModeFlow.collectAsState()
+            val dynamicColor by repository.preferences.dynamicColorFlow.collectAsState()
+
+            val isDark = when (themeMode) {
                 "dark" -> true
                 "light" -> false
                 else -> isSystemInDarkTheme()
@@ -27,7 +32,7 @@ class MainActivity : ComponentActivity() {
 
             VoceChatTheme(
                 darkTheme = isDark,
-                dynamicColor = repository.preferences.dynamicColor
+                dynamicColor = dynamicColor
             ) {
                 Surface(modifier = Modifier.fillMaxSize()) {
                     VoceChatNavGraph(repository = repository)

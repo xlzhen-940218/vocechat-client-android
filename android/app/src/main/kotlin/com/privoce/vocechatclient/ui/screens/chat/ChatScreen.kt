@@ -8,9 +8,11 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -20,13 +22,13 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -34,6 +36,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -41,11 +45,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -59,8 +60,10 @@ import com.privoce.vocechatclient.data.models.ChatMessage
 import com.privoce.vocechatclient.data.models.MessageStatus
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import com.privoce.vocechatclient.ui.components.VoceAvatar
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
@@ -100,6 +103,21 @@ fun ChatScreen(
     val messageList = messagesMap[key] ?: emptyList()
     val mediaMessages = remember(messageList) { messageList.filter { it.isImage || it.isVideo } }
 
+    // 聊天内消息搜索
+    var isSearching by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    val searchFocusRequester = remember { FocusRequester() }
+    val displayMessages = remember(messageList, searchQuery) {
+        if (searchQuery.isBlank()) {
+            messageList
+        } else {
+            messageList.filter {
+                it.content.contains(searchQuery, ignoreCase = true) ||
+                    it.fileName.contains(searchQuery, ignoreCase = true)
+            }
+        }
+    }
+
     var inputText by remember { mutableStateOf("") }
     var replyingMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var selectedMessageForOptions by remember { mutableStateOf<ChatMessage?>(null) }
@@ -109,6 +127,30 @@ fun ChatScreen(
     var isRecording by remember { mutableStateOf(false) }
     var recordStartAt by remember { mutableLongStateOf(0L) }
     var recordElapsed by remember { mutableIntStateOf(0) }
+
+    // @提及：已选中的成员（uid → 显示名），发送时作为消息属性上报
+    val mentionedUsers = remember { mutableStateMapOf<Int, String>() }
+    // 输入框光标前的 "@关键词"，用于筛选可提及的成员
+    val mentionQuery: String? = remember(inputText) {
+        val atIndex = inputText.lastIndexOf('@')
+        val after = if (atIndex >= 0) inputText.substring(atIndex + 1) else ""
+        if (atIndex >= 0 && after.none { it.isWhitespace() }) after else null
+    }
+    val mentionCandidates = remember(mentionQuery, channel, users) {
+        if (chatType != "channel" || mentionQuery == null) {
+            emptyList()
+        } else {
+            (channel?.members ?: emptyList())
+                .mapNotNull { uid -> users.find { it.uid == uid } }
+                .filter { it.uid != currentUserId }
+                .filter { mentionQuery.isBlank() || it.displayName.contains(mentionQuery, ignoreCase = true) }
+                .take(8)
+        }
+    }
+
+    // 文档预览相关状态
+    var pdfPreviewFile by remember { mutableStateOf<File?>(null) }
+    var pdfPreviewLoading by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -130,10 +172,29 @@ fun ChatScreen(
     }
 
     fun sendPickedFile(uri: Uri, fallbackMime: String = "application/octet-stream") {
-        val mime = context.contentResolver.getType(uri) ?: fallbackMime
-        val name = getDisplayName(context, uri)
-        val file = copyUriToCache(context, uri, name) ?: return
-        repository.sendAttachment(chatType, chatId, file, mime, name)
+        // 读取/拷贝文件可能很耗时，放到 IO 线程，避免卡住输入界面
+        scope.launch {
+            val prepared = withContext(Dispatchers.IO) {
+                runCatching {
+                    val mime = context.contentResolver.getType(uri) ?: fallbackMime
+                    val name = getDisplayName(context, uri)
+                    val safeName = name.substringAfterLast('/').substringAfterLast('\\')
+                    val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}_$safeName")
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        file.outputStream().use { output -> input.copyTo(output) }
+                    } ?: error("Unable to open input stream for $uri")
+                    Triple(file, mime, name)
+                }.getOrElse { e ->
+                    Log.e("ChatScreen", "Failed to copy picked file", e)
+                    null
+                }
+            }
+            if (prepared == null) {
+                Toast.makeText(context, context.getString(R.string.chat_error_read_file), Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            repository.sendAttachment(chatType, chatId, prepared.first, prepared.second, prepared.third)
+        }
     }
 
     val imagePicker = rememberLauncherForActivityResult(
@@ -150,6 +211,70 @@ fun ChatScreen(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let { sendPickedFile(it) }
+    }
+
+    // 拍照：先创建缓存文件并通过 FileProvider 暴露给相机应用
+    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        val captured = cameraImageUri
+        cameraImageUri = null
+        if (success && captured != null) {
+            sendPickedFile(captured, "image/jpeg")
+        }
+    }
+
+    fun launchCamera() {
+        try {
+            val file = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            cameraImageUri = uri
+            cameraLauncher.launch(uri)
+        } catch (e: Exception) {
+            Log.e("ChatScreen", "Failed to launch camera", e)
+            Toast.makeText(context, context.getString(R.string.chat_error_read_file), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 录像：与拍照一致，先准备缓存文件并通过 FileProvider 交给系统相机
+    var cameraVideoUri by remember { mutableStateOf<Uri?>(null) }
+    val videoCaptureLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CaptureVideo()
+    ) { success ->
+        val captured = cameraVideoUri
+        cameraVideoUri = null
+        if (success && captured != null) {
+            sendPickedFile(captured, "video/mp4")
+        }
+    }
+
+    fun launchVideoCapture() {
+        try {
+            val file = File(context.cacheDir, "camera_video_${System.currentTimeMillis()}.mp4")
+            val uri = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            cameraVideoUri = uri
+            videoCaptureLauncher.launch(uri)
+        } catch (e: Exception) {
+            Log.e("ChatScreen", "Failed to launch video capture", e)
+            Toast.makeText(context, context.getString(R.string.chat_error_read_file), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 选中成员后把输入框中的 "@关键词" 替换为 "@显示名 "
+    fun insertMention(user: com.privoce.vocechatclient.data.models.UserInfo) {
+        val atIndex = inputText.lastIndexOf('@')
+        if (atIndex < 0) return
+        inputText = inputText.substring(0, atIndex) + "@${user.displayName} "
+        mentionedUsers[user.uid] = user.displayName
     }
 
     fun startRecording(): Boolean {
@@ -199,6 +324,12 @@ fun ChatScreen(
         onDispose { voiceRecorder.cancel() }
     }
 
+    // Messages arriving in this chat should not count as unread while it is open.
+    DisposableEffect(key) {
+        repository.setActiveChat(key)
+        onDispose { repository.setActiveChat(null) }
+    }
+
     LaunchedEffect(isRecording) {
         while (isRecording) {
             recordElapsed = ((System.currentTimeMillis() - recordStartAt) / 1000).toInt()
@@ -210,7 +341,40 @@ fun ChatScreen(
         }
     }
 
+    LaunchedEffect(isSearching) {
+        if (isSearching) {
+            searchFocusRequester.requestFocus()
+        }
+    }
+
+    // 面板打开时，返回键优先收起面板而不是退出聊天
+    BackHandler(enabled = showEmoji || showExtras) {
+        showEmoji = false
+        showExtras = false
+    }
+
     fun openFile(filePath: String) {
+        // PDF 走内置预览：先下载到缓存，再由 PdfRenderer 逐页渲染
+        if (filePath.endsWith(".pdf", ignoreCase = true)) {
+            if (pdfPreviewLoading) return
+            pdfPreviewLoading = true
+            scope.launch {
+                val dest = File(context.cacheDir, "preview_${System.currentTimeMillis()}.pdf")
+                val result = withContext(Dispatchers.IO) {
+                    repository.apiClient.downloadFile(filePath, dest)
+                }
+                pdfPreviewLoading = false
+                result.onSuccess { pdfPreviewFile = it }
+                    .onFailure {
+                        Toast.makeText(
+                            context,
+                            context.getString(R.string.chat_pdf_preview_failed),
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+            }
+            return
+        }
         try {
             val fileUrl = repository.apiClient.getFileUrl(filePath)
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fileUrl))
@@ -233,11 +397,29 @@ fun ChatScreen(
         }
     }
 
-    // Auto-scroll to bottom on new message or when keyboard opens
+    // Auto-scroll to bottom on first load, on own messages, or when already at the bottom.
+    var didInitialScroll by remember(key) { mutableStateOf(false) }
     val isImeVisible = WindowInsets.isImeVisible
-    LaunchedEffect(messageList.size, isImeVisible) {
-        if (messageList.isNotEmpty()) {
-            listState.animateScrollToItem(messageList.size - 1)
+    LaunchedEffect(messageList.size) {
+        if (isSearching) return@LaunchedEffect
+        if (messageList.isEmpty()) return@LaunchedEffect
+        val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        val nearBottom = lastVisibleIndex >= messageList.lastIndex - 1
+        val sentByMe = messageList.last().fromUid == currentUserId
+        if (!didInitialScroll || nearBottom || sentByMe) {
+            listState.animateScrollToItem(messageList.lastIndex)
+            didInitialScroll = true
+        }
+    }
+    LaunchedEffect(isImeVisible) {
+        if (!isImeVisible) return@LaunchedEffect
+        // 键盘弹出时收起表情/附件面板，避免和输入法同时占用屏幕
+        showEmoji = false
+        showExtras = false
+        if (messageList.isEmpty()) return@LaunchedEffect
+        val lastVisibleIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        if (lastVisibleIndex >= messageList.lastIndex - 1) {
+            listState.animateScrollToItem(messageList.lastIndex)
         }
     }
 
@@ -245,9 +427,15 @@ fun ChatScreen(
         if (inputText.isBlank()) return
         val text = inputText.trim()
         val replyMid = replyingMessage?.mid
+        // 只上报正文中仍然保留的 @成员，避免用户删掉提及后仍触发通知
+        val mentions = mentionedUsers
+            .filter { (_, name) -> text.contains("@$name") }
+            .keys
+            .toList()
         inputText = ""
         replyingMessage = null
-        repository.sendMessage(chatType, chatId, text, replyMid)
+        mentionedUsers.clear()
+        repository.sendMessage(chatType, chatId, text, replyMid, mentions)
     }
 
     // Message context options sheet
@@ -296,21 +484,30 @@ fun ChatScreen(
 
                 ListItem(
                     headlineContent = { Text(stringResource(R.string.chat_reply)) },
-                    leadingContent = { Icon(Icons.Default.Reply, contentDescription = null) },
+                    leadingContent = { Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null) },
                     modifier = Modifier.clickable {
                         replyingMessage = msg
                         selectedMessageForOptions = null
                     }
                 )
 
+                if (msg.fromUid == currentUserId && msg.status == MessageStatus.FAILED) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.chat_action_retry)) },
+                        leadingContent = { Icon(Icons.Default.Refresh, contentDescription = null) },
+                        modifier = Modifier.clickable {
+                            repository.retryMessage(msg)
+                            selectedMessageForOptions = null
+                        }
+                    )
+                }
+
                 if (msg.fromUid == currentUserId) {
                     ListItem(
                         headlineContent = { Text(stringResource(R.string.chat_delete_message), color = MaterialTheme.colorScheme.error) },
                         leadingContent = { Icon(Icons.Default.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                         modifier = Modifier.clickable {
-                            scope.launch {
-                                repository.apiClient.deleteMessage(msg.mid)
-                            }
+                            repository.deleteMessage(msg.mid)
                             selectedMessageForOptions = null
                         }
                     )
@@ -344,11 +541,60 @@ fun ChatScreen(
         }
     }
 
+    // 内置 PDF 预览
+    pdfPreviewFile?.let { file ->
+        PdfPreviewDialog(
+            file = file,
+            title = file.name,
+            onClose = { pdfPreviewFile = null }
+        )
+    }
+
+    if (pdfPreviewLoading) {
+        Dialog(
+            onDismissRequest = {},
+            properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+        ) {
+            Surface(shape = RoundedCornerShape(16.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(stringResource(R.string.chat_pdf_preview_loading))
+                }
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (isSearching) {
+                        TextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = {
+                                Text(
+                                    stringResource(R.string.chat_search_placeholder),
+                                    fontSize = 14.sp
+                                )
+                            },
+                            singleLine = true,
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .focusRequester(searchFocusRequester)
+                        )
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                         if (chatType == "channel") {
                             Box(
                                 modifier = Modifier
@@ -392,10 +638,28 @@ fun ChatScreen(
                             )
                         }
                     }
+                    }
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        if (isSearching) {
+                            isSearching = false
+                            searchQuery = ""
+                        } else {
+                            onBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.chat_back))
+                    }
+                },
+                actions = {
+                    if (!isSearching) {
+                        IconButton(onClick = { isSearching = true }) {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = stringResource(R.string.chat_search_messages)
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -410,6 +674,8 @@ fun ChatScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = padding.calculateTopPadding())
+                // 先处理导航栏 inset，再处理输入法 inset，两者会自动去重，避免底部多出一截空白
+                .navigationBarsPadding()
                 .imePadding()
         ) {
             // Message List
@@ -422,25 +688,59 @@ fun ChatScreen(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(vertical = 12.dp)
             ) {
-                items(messageList, key = { it.localMid.ifBlank { it.mid.toString() } }) { msg ->
+                if (isSearching && displayMessages.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillParentMaxHeight(0.6f)
+                                .fillMaxWidth(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.chat_search_no_results),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                itemsIndexed(
+                    items = displayMessages,
+                    key = { _, msg -> msg.localMid.ifBlank { msg.mid.toString() } }
+                ) { index, msg ->
                     val isSelf = msg.fromUid == currentUserId
                     val sender = repository.getUser(msg.fromUid)
+                    val previous = displayMessages.getOrNull(index - 1)
 
-                    MessageBubbleItem(
-                        message = msg,
-                        isSelf = isSelf,
-                        senderName = sender?.displayName ?: if (isSelf) {
-                            stringResource(R.string.chat_self_name)
-                        } else {
-                            stringResource(R.string.fallback_user_name, msg.fromUid)
-                        },
-                        senderAvatarUrl = repository.apiClient.getUserAvatarUrl(msg.fromUid, sender?.avatarUpdatedAt),
-                        senderIsBot = sender?.isBot == true,
-                        onLongClick = { selectedMessageForOptions = msg },
-                        onPreviewMedia = { target -> previewTarget = target },
-                        onOpenFile = { path -> openFile(path) },
-                        repository = repository
-                    )
+                    // 同一人连续发送时只在该组第一条显示昵称
+                    val showSenderHeader = previous == null ||
+                        previous.fromUid != msg.fromUid ||
+                        msg.createdAt - previous.createdAt > 5 * 60 * 1000 ||
+                        !isSameDay(previous.createdAt, msg.createdAt)
+
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        // 跨天时插入日期分隔条，避免每条消息都重复显示完整日期
+                        if (previous == null || !isSameDay(previous.createdAt, msg.createdAt)) {
+                            DateSeparator(timestamp = msg.createdAt)
+                        }
+
+                        MessageBubbleItem(
+                            message = msg,
+                            isSelf = isSelf,
+                            showSenderHeader = showSenderHeader,
+                            senderName = sender?.displayName ?: if (isSelf) {
+                                stringResource(R.string.chat_self_name)
+                            } else {
+                                stringResource(R.string.fallback_user_name, msg.fromUid)
+                            },
+                            senderAvatarUrl = repository.apiClient.getUserAvatarUrl(msg.fromUid, sender?.avatarUpdatedAt),
+                            senderIsBot = sender?.isBot == true,
+                            onLongClick = { selectedMessageForOptions = msg },
+                            onPreviewMedia = { target -> previewTarget = target },
+                            onOpenFile = { path -> openFile(path) },
+                            repository = repository
+                        )
+                    }
                 }
             }
 
@@ -459,7 +759,7 @@ fun ChatScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                Icons.Default.Reply,
+                                Icons.AutoMirrored.Filled.Reply,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(18.dp)
@@ -484,6 +784,47 @@ fun ChatScreen(
                                     Icons.Default.Close,
                                     contentDescription = stringResource(R.string.chat_cancel_reply),
                                     modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 输入 "@" 时在输入框上方显示可提及成员
+            AnimatedVisibility(visible = mentionCandidates.isNotEmpty()) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    tonalElevation = 3.dp,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        Text(
+                            text = stringResource(R.string.chat_mention),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                        )
+                        mentionCandidates.forEach { user ->
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { insertMention(user) }
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                            ) {
+                                VoceAvatar(
+                                    avatarUrl = repository.apiClient.getUserAvatarUrl(user.uid, user.avatarUpdatedAt),
+                                    name = user.displayName,
+                                    size = 28.dp,
+                                    isBot = user.isBot
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(
+                                    text = user.displayName,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }
@@ -525,9 +866,7 @@ fun ChatScreen(
 
             // Input Bar + attachment / emoji panels
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
+                modifier = Modifier.fillMaxWidth()
             ) {
                 Surface(
                     color = MaterialTheme.colorScheme.surface,
@@ -543,9 +882,14 @@ fun ChatScreen(
                     ) {
                         IconButton(
                             onClick = {
-                                showExtras = !showExtras
-                                if (showExtras) {
+                                // 加号面板与表情面板互斥，避免两个面板状态不同步
+                                if (showEmoji) {
                                     showEmoji = false
+                                    showExtras = true
+                                } else {
+                                    showExtras = !showExtras
+                                }
+                                if (showExtras) {
                                     keyboardController?.hide()
                                 }
                             },
@@ -580,10 +924,27 @@ fun ChatScreen(
                                 }
                         )
 
+                        if (chatType == "channel") {
+                            IconButton(
+                                onClick = {
+                                    if (!inputText.endsWith("@")) {
+                                        inputText += "@"
+                                    }
+                                },
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Default.AlternateEmail,
+                                    contentDescription = stringResource(R.string.chat_mention),
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
                         IconButton(
                             onClick = {
                                 showEmoji = !showEmoji
-                                showExtras = showEmoji
+                                showExtras = false
                                 if (showEmoji) keyboardController?.hide()
                             },
                             modifier = Modifier.size(40.dp)
@@ -638,6 +999,14 @@ fun ChatScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         AttachmentPanel(
+                            onCamera = {
+                                showExtras = false
+                                launchCamera()
+                            },
+                            onRecordVideo = {
+                                showExtras = false
+                                launchVideoCapture()
+                            },
                             onPickImages = {
                                 showExtras = false
                                 imagePicker.launch(
@@ -667,6 +1036,7 @@ fun ChatScreen(
 private fun MessageBubbleItem(
     message: ChatMessage,
     isSelf: Boolean,
+    showSenderHeader: Boolean,
     senderName: String,
     senderAvatarUrl: String?,
     senderIsBot: Boolean = false,
@@ -679,10 +1049,6 @@ private fun MessageBubbleItem(
     val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
     val formattedTime = remember(message.createdAt) {
         timeFormat.format(Date(message.createdAt))
-    }
-    val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd", Locale.getDefault()) }
-    val formattedDate = remember(message.createdAt) {
-        dateFormat.format(Date(message.createdAt))
     }
 
     Row(
@@ -706,17 +1072,14 @@ private fun MessageBubbleItem(
             horizontalAlignment = if (isSelf) Alignment.End else Alignment.Start,
             modifier = Modifier.widthIn(max = 290.dp)
         ) {
-            if (!isSelf) {
+            if (!isSelf && showSenderHeader) {
                 Text(
-                    text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)) {
-                            append(senderName)
-                        }
-                        append("  ")
-                        withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f), fontSize = 10.sp)) {
-                            append(formattedDate)
-                        }
-                    },
+                    text = senderName,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
                 )
             }
@@ -898,7 +1261,8 @@ private fun MessageBubbleItem(
                         AudioMessageBubble(
                             url = repository.apiClient.getFileUrl(message.content),
                             isSelf = isSelf,
-                            durationSeconds = message.durationSeconds
+                            durationSeconds = message.durationSeconds,
+                            messageMid = message.mid
                         )
                     } else if (message.isVideo) {
                         Box(
@@ -992,14 +1356,12 @@ private fun MessageBubbleItem(
                             )
                         }
                     } else {
-                        SelectionContainer {
-                            Text(
-                                text = message.content,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = if (isSelf) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.padding(vertical = 2.dp)
-                            )
-                        }
+                        Text(
+                            text = message.content,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = if (isSelf) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        )
                     }
 
                     // Reactions list below message content
@@ -1062,16 +1424,31 @@ private fun MessageBubbleItem(
                                     modifier = Modifier.size(10.dp),
                                     strokeWidth = 1.5.dp
                                 )
-                                MessageStatus.FAILED -> Icon(
-                                    Icons.Default.ErrorOutline,
-                                    contentDescription = stringResource(R.string.chat_status_failed),
-                                    tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(12.dp)
-                                )
+                                MessageStatus.FAILED -> Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .clickable { repository.retryMessage(message) }
+                                        .padding(horizontal = 2.dp, vertical = 1.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.ErrorOutline,
+                                        contentDescription = stringResource(R.string.chat_status_failed),
+                                        tint = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(2.dp))
+                                    Text(
+                                        text = stringResource(R.string.chat_action_retry),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
                                 MessageStatus.SUCCESS -> Icon(
                                     Icons.Default.Check,
                                     contentDescription = stringResource(R.string.chat_status_sent),
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = if (isSelf) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(12.dp)
                                 )
                             }
@@ -1101,18 +1478,41 @@ private fun getDisplayName(context: Context, uri: Uri): String {
     return name
 }
 
-private fun copyUriToCache(context: Context, uri: Uri, displayName: String): File? {
-    return try {
-        val safeName = displayName.substringAfterLast('/').substringAfterLast('\\')
-        val file = File(context.cacheDir, "upload_${System.currentTimeMillis()}_$safeName")
-        context.contentResolver.openInputStream(uri)?.use { input ->
-            file.outputStream().use { output -> input.copyTo(output) }
-        } ?: return null
-        file
-    } catch (e: Exception) {
-        Log.e("ChatScreen", "Failed to copy picked file", e)
-        Toast.makeText(context, context.getString(R.string.chat_error_read_file), Toast.LENGTH_SHORT).show()
-        null
+/** 判断两个时间戳是否落在同一天。 */
+private fun isSameDay(first: Long, second: Long): Boolean {
+    val calendar = Calendar.getInstance()
+    calendar.timeInMillis = first
+    val firstYear = calendar.get(Calendar.YEAR)
+    val firstDay = calendar.get(Calendar.DAY_OF_YEAR)
+    calendar.timeInMillis = second
+    return firstYear == calendar.get(Calendar.YEAR) && firstDay == calendar.get(Calendar.DAY_OF_YEAR)
+}
+
+/** 聊天列表中的日期分隔条。 */
+@Composable
+private fun DateSeparator(timestamp: Long) {
+    val formatter = remember {
+        java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM, Locale.getDefault())
+    }
+    val label = remember(timestamp) { formatter.format(Date(timestamp)) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
+        }
     }
 }
 

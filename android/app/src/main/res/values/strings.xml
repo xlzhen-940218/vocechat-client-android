@@ -73,6 +73,10 @@
     <string name="settings_server_name">Server name</string>
     <string name="settings_version">Version</string>
     <string name="settings_appearance">Appearance &amp; personalization</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
     <string name="settings_dynamic_color">Material You dynamic colors</string>
     <string name="settings_dynamic_color_desc">Automatically derive colors from the Android wallpaper</string>
     <string name="settings_architecture">Client architecture</string>
@@ -128,6 +132,10 @@
     <string name="chat_image">Image</string>
     <string name="chat_status_failed">Failed</string>
     <string name="chat_status_sent">Sent</string>
+    <string name="chat_action_retry">Resend</string>
+    <string name="chat_search_placeholder">Search in conversation</string>
+    <string name="chat_search_messages">Search messages</string>
+    <string name="chat_search_no_results">No matching messages</string>
     <string name="chat_self_name">You</string>
     <string name="chat_fallback_title">Chat #%1$d</string>
     <string name="chat_error_microphone_permission">Microphone permission is required to send voice messages</string>
@@ -140,9 +148,15 @@
     <string name="chat_audio_play">Play</string>
     <string name="chat_audio_stop">Stop</string>
     <string name="chat_audio_pause">Pause</string>
+    <string name="chat_attachment_camera">Camera</string>
+    <string name="chat_attachment_record_video">Record</string>
     <string name="chat_attachment_image">Image</string>
     <string name="chat_attachment_video">Video</string>
     <string name="chat_attachment_file">File</string>
+    <string name="chat_mention">Mention someone</string>
+    <string name="chat_mention_empty">No matching members</string>
+    <string name="chat_pdf_preview_failed">Unable to preview this document</string>
+    <string name="chat_pdf_preview_loading">Loading document…</string>
 
     <!-- Message previews -->
     <string name="preview_image">[Image]</string>

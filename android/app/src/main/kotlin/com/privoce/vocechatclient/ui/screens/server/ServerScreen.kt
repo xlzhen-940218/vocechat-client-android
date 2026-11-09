@@ -11,7 +11,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material3.*
@@ -28,7 +28,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.privoce.vocechatclient.R
-import com.privoce.vocechatclient.data.models.ServerInfo
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import kotlinx.coroutines.launch
 
@@ -44,7 +43,6 @@ fun ServerScreen(
     var urlText by remember { mutableStateOf(repository.preferences.serverUrl) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var detectedServerInfo by remember { mutableStateOf<ServerInfo?>(null) }
 
     fun testAndProceed() {
         if (urlText.isBlank()) {
@@ -56,8 +54,7 @@ fun ServerScreen(
         scope.launch {
             val result = repository.checkServer(urlText)
             isLoading = false
-            result.onSuccess { info ->
-                detectedServerInfo = info
+            result.onSuccess {
                 onServerConnected()
             }.onFailure { err ->
                 val detail = err.localizedMessage ?: context.getString(R.string.server_error_check_network)
@@ -209,7 +206,7 @@ fun ServerScreen(
                         } else {
                             Text(stringResource(R.string.server_connect), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Icon(Icons.Default.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null, modifier = Modifier.size(18.dp))
                         }
                     }
                 }

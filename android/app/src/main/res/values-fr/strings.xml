@@ -73,6 +73,10 @@
     <string name="settings_server_name">Nom du serveur</string>
     <string name="settings_version">Version</string>
     <string name="settings_appearance">Apparence et personnalisation</string>
+    <string name="settings_theme">Thème</string>
+    <string name="settings_theme_system">Système</string>
+    <string name="settings_theme_light">Clair</string>
+    <string name="settings_theme_dark">Sombre</string>
     <string name="settings_dynamic_color">Couleurs dynamiques Material You</string>
     <string name="settings_dynamic_color_desc">Dériver automatiquement les couleurs du fond d\'écran Android</string>
     <string name="settings_architecture">Architecture du client</string>

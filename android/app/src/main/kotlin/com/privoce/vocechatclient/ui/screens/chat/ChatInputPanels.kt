@@ -26,12 +26,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.InsertDriveFile
+import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.VideoLibrary
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -74,6 +76,30 @@ private val EMOJI_LIST = listOf(
     "🚀", "💡", "✅", "❌", "⚡", "🌈", "🌙", "☀️", "😺", "🐶"
 )
 
+/**
+ * 全局语音播放控制：同一时刻只允许一条语音消息播放。
+ * 播放新语音时会先暂停上一条，避免多条语音同时出声。
+ */
+private object AudioPlaybackManager {
+    private var currentMid: Long = -1L
+    private var pauseCurrent: (() -> Unit)? = null
+
+    fun onStart(mid: Long, pause: () -> Unit) {
+        if (currentMid != mid) {
+            pauseCurrent?.invoke()
+            currentMid = mid
+            pauseCurrent = pause
+        }
+    }
+
+    fun onStop(mid: Long) {
+        if (currentMid == mid) {
+            currentMid = -1L
+            pauseCurrent = null
+        }
+    }
+}
+
 @Composable
 fun EmojiPanel(
     onEmojiSelected: (String) -> Unit,
@@ -103,6 +129,8 @@ fun EmojiPanel(
 
 @Composable
 fun AttachmentPanel(
+    onCamera: () -> Unit,
+    onRecordVideo: () -> Unit,
     onPickImages: () -> Unit,
     onPickVideo: () -> Unit,
     onPickDocument: () -> Unit,
@@ -111,12 +139,45 @@ fun AttachmentPanel(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 20.dp),
-        horizontalArrangement = Arrangement.SpaceEvenly
+            .padding(horizontal = 12.dp, vertical = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        AttachmentAction(Icons.Default.PhotoLibrary, stringResource(R.string.chat_attachment_image), Color(0xFF43A047), onPickImages)
-        AttachmentAction(Icons.Default.Videocam, stringResource(R.string.chat_attachment_video), Color(0xFF1E88E5), onPickVideo)
-        AttachmentAction(Icons.Default.InsertDriveFile, stringResource(R.string.chat_attachment_file), Color(0xFFFB8C00), onPickDocument)
+        AttachmentAction(
+            Icons.Default.PhotoCamera,
+            stringResource(R.string.chat_attachment_camera),
+            Color(0xFF8E24AA),
+            onCamera,
+            Modifier.weight(1f)
+        )
+        AttachmentAction(
+            Icons.Default.PhotoLibrary,
+            stringResource(R.string.chat_attachment_image),
+            Color(0xFF43A047),
+            onPickImages,
+            Modifier.weight(1f)
+        )
+        AttachmentAction(
+            Icons.Default.Videocam,
+            stringResource(R.string.chat_attachment_record_video),
+            Color(0xFFE53935),
+            onRecordVideo,
+            Modifier.weight(1f)
+        )
+        AttachmentAction(
+            Icons.Default.VideoLibrary,
+            stringResource(R.string.chat_attachment_video),
+            Color(0xFF1E88E5),
+            onPickVideo,
+            Modifier.weight(1f)
+        )
+        AttachmentAction(
+            Icons.AutoMirrored.Filled.InsertDriveFile,
+            stringResource(R.string.chat_attachment_file),
+            Color(0xFFFB8C00),
+            onPickDocument,
+            Modifier.weight(1f)
+        )
     }
 }
 
@@ -125,14 +186,15 @@ private fun AttachmentAction(
     icon: ImageVector,
     label: String,
     color: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 4.dp, vertical = 6.dp)
     ) {
         Surface(
             shape = RoundedCornerShape(16.dp),
@@ -206,6 +268,7 @@ fun AudioMessageBubble(
     url: String,
     isSelf: Boolean,
     durationSeconds: Int,
+    messageMid: Long = 0L,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -233,6 +296,16 @@ fun AudioMessageBubble(
         player = null
         isPlaying = false
         positionMs = 0
+        AudioPlaybackManager.onStop(messageMid)
+    }
+
+    /** 被其他语音抢占播放时，只暂停当前播放器，保留进度。 */
+    fun pauseForOthers() {
+        try {
+            player?.let { if (it.isPlaying) it.pause() }
+        } catch (_: Exception) {
+        }
+        isPlaying = false
     }
 
     DisposableEffect(Unit) {
@@ -244,7 +317,9 @@ fun AudioMessageBubble(
             if (existing.isPlaying) {
                 existing.pause()
                 isPlaying = false
+                AudioPlaybackManager.onStop(messageMid)
             } else {
+                AudioPlaybackManager.onStart(messageMid) { pauseForOthers() }
                 existing.start()
                 isPlaying = true
             }
@@ -252,6 +327,7 @@ fun AudioMessageBubble(
         }
         val mediaPlayer = MediaPlayer()
         player = mediaPlayer
+        AudioPlaybackManager.onStart(messageMid) { pauseForOthers() }
         try {
             mediaPlayer.setAudioAttributes(
                 AudioAttributes.Builder()
@@ -269,6 +345,7 @@ fun AudioMessageBubble(
                 isPlaying = false
                 positionMs = 0
                 it.seekTo(0)
+                AudioPlaybackManager.onStop(messageMid)
             }
             mediaPlayer.setOnErrorListener { _, _, _ ->
                 releasePlayer()

@@ -36,8 +36,13 @@ fun ContactsTab(
     var searchQuery by remember { mutableStateOf("") }
     var onlineOnly by remember { mutableStateOf(false) }
 
-    val filteredUsers = remember(users, searchQuery, onlineOnly) {
-        users.filter { user ->
+    val currentUserId = repository.preferences.currentUserId
+    val visibleUsers = remember(users, currentUserId) {
+        users.filter { it.uid != currentUserId }
+    }
+
+    val filteredUsers = remember(visibleUsers, searchQuery, onlineOnly) {
+        visibleUsers.filter { user ->
             val matchQuery = searchQuery.isBlank() ||
                     user.displayName.contains(searchQuery, ignoreCase = true) ||
                     user.email?.contains(searchQuery, ignoreCase = true) == true
@@ -84,12 +89,12 @@ fun ContactsTab(
             FilterChip(
                 selected = !onlineOnly,
                 onClick = { onlineOnly = false },
-                label = { Text(stringResource(R.string.contacts_filter_all, users.size)) }
+                label = { Text(stringResource(R.string.contacts_filter_all, visibleUsers.size)) }
             )
             FilterChip(
                 selected = onlineOnly,
                 onClick = { onlineOnly = true },
-                label = { Text(stringResource(R.string.contacts_filter_online, users.count { it.online })) }
+                label = { Text(stringResource(R.string.contacts_filter_online, visibleUsers.count { it.online })) }
             )
         }
 
@@ -114,7 +119,7 @@ fun ContactsTab(
                     Surface(
                         onClick = { onUserClick(user) },
                         shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surface,
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(

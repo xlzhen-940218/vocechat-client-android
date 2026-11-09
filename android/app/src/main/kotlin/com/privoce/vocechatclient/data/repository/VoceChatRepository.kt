@@ -63,8 +63,24 @@ class VoceChatRepository(context: Context) {
     private val _messages = MutableStateFlow<Map<String, List<ChatMessage>>>(emptyMap())
     val messages: StateFlow<Map<String, List<ChatMessage>>> = _messages.asStateFlow()
 
-    private val _unreadCounts = MutableStateFlow<Map<String, Int>>(emptyMap())
+    // 未读数本地持久化，重启 App 后仍能显示
+    private val _unreadCounts = MutableStateFlow(preferences.unreadCounts)
     val unreadCounts: StateFlow<Map<String, Int>> = _unreadCounts.asStateFlow()
+
+    private var activeChatKey: String? = null
+
+    fun setActiveChat(key: String?) {
+        activeChatKey = key
+        val counts = _unreadCounts.value
+        if (key != null && (counts[key] ?: 0) > 0) {
+            updateUnreadCounts(counts - key)
+        }
+    }
+
+    private fun updateUnreadCounts(counts: Map<String, Int>) {
+        _unreadCounts.value = counts
+        preferences.unreadCounts = counts
+    }
 
     init {
         if (preferences.isLoggedIn) {
@@ -88,13 +104,16 @@ class VoceChatRepository(context: Context) {
         sseClient?.disconnect()
 
         _connectionStatus.value = ConnectionStatus.CONNECTING
-        sseClient = VoceSseClient(
+        // 只处理当前活跃客户端的回调，避免被替换的旧连接把状态改回“已断开”
+        var newClient: VoceSseClient? = null
+        newClient = VoceSseClient(
             baseUrl = preferences.serverUrl,
             token = token
         ) { event ->
-            handleSseEvent(event)
+            if (sseClient === newClient) handleSseEvent(event)
         }
-        sseClient?.connect()
+        sseClient = newClient
+        newClient.connect()
     }
 
     private fun handleSseEvent(event: SseEvent) {
@@ -128,14 +147,37 @@ class VoceChatRepository(context: Context) {
                 if (key != null) {
                     val currentMap = _messages.value.toMutableMap()
                     val list = (currentMap[key] ?: emptyList()).toMutableList()
-                    val idx = list.indexOfFirst { it.mid == msg.mid }
-                    if (idx >= 0) {
-                        list[idx] = msg
+
+                    // If this is the echo of a message we are still sending,
+                    // replace the optimistic entry instead of appending a duplicate.
+                    val incomingCid = msg.properties?.get("cid")?.toString()
+                    val pendingIndex = if (!incomingCid.isNullOrBlank()) {
+                        list.indexOfFirst {
+                            it.localMid.isNotBlank() &&
+                                it.properties?.get("cid")?.toString() == incomingCid
+                        }
                     } else {
-                        list.add(msg)
+                        -1
+                    }
+
+                    if (pendingIndex >= 0) {
+                        val pending = list[pendingIndex]
+                        list[pendingIndex] = msg.copy(localMid = pending.localMid)
+                    } else {
+                        val idx = list.indexOfFirst { it.mid == msg.mid }
+                        if (idx >= 0) {
+                            list[idx] = msg
+                        } else {
+                            list.add(msg)
+                        }
                     }
                     currentMap[key] = list.sortedBy { it.createdAt }
                     _messages.value = currentMap
+
+                    if (msg.fromUid != preferences.currentUserId && key != activeChatKey) {
+                        val counts = _unreadCounts.value
+                        updateUnreadCounts(counts + (key to ((counts[key] ?: 0) + 1)))
+                    }
                 }
             }
             is SseEvent.Reaction -> {
@@ -204,28 +246,26 @@ class VoceChatRepository(context: Context) {
                 _users.value = currentUsers.values.toList()
             }
             is SseEvent.MessageDeleted -> {
-                val currentMap = _messages.value.toMutableMap()
-                var modified = false
-                currentMap.forEach { (key, list) ->
-                    if (list.any { it.mid == event.mid }) {
-                        currentMap[key] = list.filter { it.mid != event.mid }
-                        modified = true
-                    }
-                }
-                if (modified) {
-                    _messages.value = currentMap
-                }
+                removeMessageById(event.mid)
             }
             else -> {}
         }
     }
 
     suspend fun checkServer(url: String): Result<ServerInfo> {
-        apiClient.updateConfig(baseUrl = url)
+        val previousUrl = preferences.serverUrl
+        // 规范化地址（补全协议、去掉末尾斜杠），否则 "host:port" 这类输入会直接请求失败
+        val candidate = preferences.normalizeServerUrl(url)
+        apiClient.updateConfig(baseUrl = candidate)
         val result = apiClient.checkServer()
         result.onSuccess {
-            preferences.serverUrl = url
+            preferences.serverUrl = candidate
             _serverInfo.value = it
+        }.onFailure {
+            // Keep the previously working server if the new address is unreachable.
+            if (previousUrl.isNotBlank()) {
+                apiClient.updateConfig(baseUrl = previousUrl, token = preferences.token)
+            }
         }
         return result
     }
@@ -270,15 +310,21 @@ class VoceChatRepository(context: Context) {
 
             // Load users
             apiClient.getUsers().onSuccess { userList ->
-                _users.value = userList
-                val current = userList.find { it.uid == preferences.currentUserId }
+                // /user 接口不返回在线状态，合并时保留 SSE 推送的在线标记
+                val onlineByUid = _users.value.associate { it.uid to it.online }
+                val merged = userList.map { user ->
+                    if (onlineByUid[user.uid] == true) user.copy(online = true) else user
+                }
+                _users.value = merged
+                val current = merged.find { it.uid == preferences.currentUserId }
                 if (current != null) {
                     _currentUser.value = current
                 }
 
-                // Preload DM history for contacts so recent message shows on ChatsTab
+                // Preload DM history for contacts so recent message shows on ChatsTab.
+                // 只取最后一条用于列表预览，避免启动时为每个联系人拉取整段历史。
                 userList.filter { it.uid != preferences.currentUserId }.forEach { contact ->
-                    loadDmHistory(contact.uid)
+                    loadDmHistory(contact.uid, limit = 1)
                 }
             }
 
@@ -286,15 +332,15 @@ class VoceChatRepository(context: Context) {
             apiClient.getChannels().onSuccess { channelList ->
                 _channels.value = channelList
                 channelList.forEach {
-                    loadChannelHistory(it.gid)
+                    loadChannelHistory(it.gid, limit = 1)
                 }
             }
         }
     }
 
-    fun loadChannelHistory(gid: Int) {
+    fun loadChannelHistory(gid: Int, limit: Int = 50) {
         scope.launch {
-            apiClient.getChannelHistory(gid).onSuccess { fetchedMessages ->
+            apiClient.getChannelHistory(gid, limit = limit).onSuccess { fetchedMessages ->
                 val key = "channel_$gid"
                 val currentMap = _messages.value.toMutableMap()
                 val existing = currentMap[key] ?: emptyList()
@@ -305,9 +351,9 @@ class VoceChatRepository(context: Context) {
         }
     }
 
-    fun loadDmHistory(dmUid: Int) {
+    fun loadDmHistory(dmUid: Int, limit: Int = 50) {
         scope.launch {
-            apiClient.getDmHistory(dmUid).onSuccess { fetchedMessages ->
+            apiClient.getDmHistory(dmUid, limit = limit).onSuccess { fetchedMessages ->
                 val key = "dm_$dmUid"
                 val currentMap = _messages.value.toMutableMap()
                 val existing = currentMap[key] ?: emptyList()
@@ -318,10 +364,23 @@ class VoceChatRepository(context: Context) {
         }
     }
 
-    fun sendMessage(chatType: String, id: Int, content: String, replyToMid: Long? = null) {
+    fun sendMessage(
+        chatType: String,
+        id: Int,
+        content: String,
+        replyToMid: Long? = null,
+        mentions: List<Int> = emptyList()
+    ) {
         scope.launch {
             val key = "${chatType}_$id"
             val localMid = "local_${System.currentTimeMillis()}"
+            val cid = "client_${System.currentTimeMillis()}_${(0..9999).random()}"
+            val pendingProps = mutableMapOf<String, Any>(
+                "cid" to cid,
+                // retry_text 仅用于本地重发，成功后会随服务端属性一起被替换
+                "retry_text" to content
+            )
+            if (mentions.isNotEmpty()) pendingProps["mentions"] = mentions
             val pendingMsg = ChatMessage(
                 mid = System.currentTimeMillis(),
                 localMid = localMid,
@@ -331,7 +390,8 @@ class VoceChatRepository(context: Context) {
                 content = content,
                 contentType = "text/plain",
                 status = MessageStatus.SENDING,
-                replyToMid = replyToMid
+                replyToMid = replyToMid,
+                properties = pendingProps
             )
 
             // Optimistic update
@@ -343,31 +403,37 @@ class VoceChatRepository(context: Context) {
 
             // Send to server
             val sendResult = if (chatType == "channel") {
-                apiClient.sendChannelMessage(id, content, replyToMid)
+                apiClient.sendChannelMessage(id, content, replyToMid, cid, mentions)
             } else {
-                apiClient.sendDirectMessage(id, content, replyToMid)
+                apiClient.sendDirectMessage(id, content, replyToMid, cid, mentions)
             }
 
             sendResult.onSuccess { serverMid ->
-                val updatedMap = _messages.value.toMutableMap()
-                val updatedList = (updatedMap[key] ?: emptyList()).map {
-                    if (it.localMid == localMid) {
-                        it.copy(mid = serverMid, status = MessageStatus.SUCCESS)
-                    } else it
+                finalizeMessage(key, localMid, serverMid) {
+                    it.copy(mid = serverMid, status = MessageStatus.SUCCESS)
                 }
-                updatedMap[key] = updatedList
-                _messages.value = updatedMap
             }.onFailure {
-                val updatedMap = _messages.value.toMutableMap()
-                val updatedList = (updatedMap[key] ?: emptyList()).map {
-                    if (it.localMid == localMid) {
-                        it.copy(status = MessageStatus.FAILED)
-                    } else it
-                }
-                updatedMap[key] = updatedList
-                _messages.value = updatedMap
+                markMessageFailed(key, localMid)
             }
         }
+    }
+
+    /**
+     * Replaces the optimistic message identified by [localMid] with the final one and
+     * drops any duplicate copy that may have arrived earlier through the SSE echo.
+     */
+    private fun finalizeMessage(
+        key: String,
+        localMid: String,
+        serverMid: Long,
+        transform: (ChatMessage) -> ChatMessage
+    ) {
+        val updatedMap = _messages.value.toMutableMap()
+        val updatedList = (updatedMap[key] ?: emptyList())
+            .filterNot { it.mid == serverMid && it.localMid != localMid }
+            .map { if (it.localMid == localMid) transform(it) else it }
+        updatedMap[key] = updatedList
+        _messages.value = updatedMap
     }
 
     /**
@@ -385,6 +451,7 @@ class VoceChatRepository(context: Context) {
         scope.launch {
             val key = "${chatType}_$id"
             val localMid = "local_${System.currentTimeMillis()}"
+            val cid = "client_${System.currentTimeMillis()}_${(0..9999).random()}"
             val pendingMsg = ChatMessage(
                 mid = System.currentTimeMillis(),
                 localMid = localMid,
@@ -394,7 +461,13 @@ class VoceChatRepository(context: Context) {
                 content = appContext.getString(R.string.state_uploading),
                 contentType = "text/plain",
                 status = MessageStatus.SENDING,
-                properties = mapOf("name" to displayName)
+                // local_path / mime 仅保存在本地，用于发送失败后重试
+                properties = mapOf(
+                    "name" to displayName,
+                    "cid" to cid,
+                    "local_path" to file.absolutePath,
+                    "mime" to mimeType
+                ) + extraProperties
             )
 
             val currentMap = _messages.value.toMutableMap()
@@ -406,13 +479,14 @@ class VoceChatRepository(context: Context) {
             val uploadResult = apiClient.uploadFile(file, mimeType, displayName)
             uploadResult.onFailure { e ->
                 Log.e(TAG, "uploadAttachment failed", e)
-                failPendingMessage(key, localMid, displayName)
+                markMessageFailed(key, localMid, displayName)
             }
             uploadResult.onSuccess { path ->
                 val properties = mutableMapOf<String, Any>(
                     "name" to displayName,
                     "content_type" to mimeType,
-                    "size" to file.length()
+                    "size" to file.length(),
+                    "cid" to cid
                 )
                 properties.putAll(extraProperties)
 
@@ -423,9 +497,114 @@ class VoceChatRepository(context: Context) {
                 }
 
                 sendResult.onSuccess { serverMid ->
-                    val updatedMap = _messages.value.toMutableMap()
-                    val updatedList = (updatedMap[key] ?: emptyList()).map {
-                        if (it.localMid == localMid) {
+                    finalizeMessage(key, localMid, serverMid) {
+                        it.copy(
+                            mid = serverMid,
+                            content = path,
+                            contentType = "vocechat/file",
+                            status = MessageStatus.SUCCESS,
+                            properties = properties
+                        )
+                    }
+                    // 发送成功后才清理缓存文件；失败时保留以便重试
+                    file.delete()
+                }.onFailure { e ->
+                    Log.e(TAG, "sendAttachment failed", e)
+                    markMessageFailed(key, localMid, displayName)
+                }
+            }
+        }
+    }
+
+    /** 将某条本地消息标记为发送失败，并保留可用于重发的正文/文件。 */
+    private fun markMessageFailed(key: String, localMid: String, displayName: String? = null) {
+        val updatedMap = _messages.value.toMutableMap()
+        val updatedList = (updatedMap[key] ?: emptyList()).map {
+            if (it.localMid == localMid) {
+                it.copy(
+                    content = displayName ?: it.content,
+                    status = MessageStatus.FAILED
+                )
+            } else it
+        }
+        updatedMap[key] = updatedList
+        _messages.value = updatedMap
+    }
+
+    /**
+     * 重发一条发送失败的消息（文本或附件）。
+     * 文本使用本地保存的原始正文，附件使用仍保留在缓存中的文件。
+     */
+    fun retryMessage(message: ChatMessage) {
+        val localMid = message.localMid
+        if (localMid.isBlank() || message.status != MessageStatus.FAILED) return
+        val isChannel = message.gid != null && message.gid > 0
+        val id = if (isChannel) message.gid!! else message.dmUid ?: return
+        val key = if (isChannel) "channel_$id" else "dm_$id"
+        val props = message.properties
+        val retryText = props?.get("retry_text")?.toString()
+        val localPath = props?.get("local_path")?.toString()
+        val mime = props?.get("mime")?.toString() ?: "application/octet-stream"
+        val name = props?.get("name")?.toString() ?: message.fileName
+        val cid = props?.get("cid")?.toString()
+            ?: "client_${System.currentTimeMillis()}_${(0..9999).random()}"
+        val extraProperties = props?.filterKeys { it == "duration" } ?: emptyMap()
+        val mentions = (props?.get("mentions") as? List<*>)
+            ?.mapNotNull { (it as? Number)?.toInt() }
+            ?: emptyList()
+
+        // 重置为发送中，文本消息恢复原始正文
+        val resetMap = _messages.value.toMutableMap()
+        resetMap[key] = (resetMap[key] ?: emptyList()).map {
+            if (it.localMid == localMid) {
+                it.copy(
+                    content = retryText ?: it.content,
+                    status = MessageStatus.SENDING
+                )
+            } else it
+        }
+        _messages.value = resetMap
+
+        scope.launch {
+            if (retryText != null) {
+                val result = if (isChannel) {
+                    apiClient.sendChannelMessage(id, retryText, message.replyToMid, cid, mentions)
+                } else {
+                    apiClient.sendDirectMessage(id, retryText, message.replyToMid, cid, mentions)
+                }
+                result.onSuccess { serverMid ->
+                    finalizeMessage(key, localMid, serverMid) {
+                        it.copy(mid = serverMid, status = MessageStatus.SUCCESS)
+                    }
+                }.onFailure {
+                    markMessageFailed(key, localMid)
+                }
+            } else {
+                val file = localPath?.let { File(it) }
+                if (file == null || !file.exists()) {
+                    markMessageFailed(key, localMid, name)
+                    return@launch
+                }
+                val uploadResult = apiClient.uploadFile(file, mime, name)
+                uploadResult.onFailure {
+                    markMessageFailed(key, localMid, name)
+                }
+                uploadResult.onSuccess { path ->
+                    val properties = mutableMapOf<String, Any>(
+                        "name" to name,
+                        "content_type" to mime,
+                        "size" to file.length(),
+                        "cid" to cid
+                    )
+                    properties.putAll(extraProperties)
+
+                    val sendResult = if (isChannel) {
+                        apiClient.sendChannelFile(id, path, properties)
+                    } else {
+                        apiClient.sendDirectFile(id, path, properties)
+                    }
+                    sendResult.onSuccess { serverMid ->
+                        finalizeMessage(key, localMid, serverMid) {
                             it.copy(
                                 mid = serverMid,
                                 content = path,
@@ -433,29 +612,14 @@ class VoceChatRepository(context: Context) {
                                 status = MessageStatus.SUCCESS,
                                 properties = properties
                             )
-                        } else it
+                        }
+                        file.delete()
+                    }.onFailure {
+                        markMessageFailed(key, localMid, name)
                     }
-                    updatedMap[key] = updatedList
-                    _messages.value = updatedMap
-                }.onFailure { e ->
-                    Log.e(TAG, "sendAttachment failed", e)
-                    failPendingMessage(key, localMid, displayName)
                 }
             }
-
-            file.delete()
         }
-    }
-
-    private fun failPendingMessage(key: String, localMid: String, displayName: String) {
-        val updatedMap = _messages.value.toMutableMap()
-        val updatedList = (updatedMap[key] ?: emptyList()).map {
-            if (it.localMid == localMid) {
-                it.copy(content = appContext.getString(R.string.state_send_failed, displayName), status = MessageStatus.FAILED)
-            } else it
-        }
-        updatedMap[key] = updatedList
-        _messages.value = updatedMap
     }
 
     suspend fun createChannel(name: String, description: String?, isPublic: Boolean): Result<Int> {
@@ -508,13 +672,40 @@ class VoceChatRepository(context: Context) {
         }
     }
 
+    /** 删除消息：本地立即移除，不依赖 SSE 回显（离线时也能正确反馈）。 */
+    fun deleteMessage(mid: Long) {
+        removeMessageById(mid)
+        scope.launch {
+            apiClient.deleteMessage(mid)
+        }
+    }
+
+    private fun removeMessageById(mid: Long) {
+        val currentMap = _messages.value.toMutableMap()
+        var modified = false
+        currentMap.forEach { (key, list) ->
+            if (list.any { it.mid == mid }) {
+                currentMap[key] = list.filter { it.mid != mid }
+                modified = true
+            }
+        }
+        if (modified) {
+            _messages.value = currentMap
+        }
+    }
+
     fun logout() {
         sseClient?.disconnect()
+        sseClient = null
+        apiClient.clearAuth()
         preferences.clearAuth()
         _currentUser.value = null
         _channels.value = emptyList()
         _users.value = emptyList()
         _messages.value = emptyMap()
+        _unreadCounts.value = emptyMap()
+        preferences.unreadCounts = emptyMap()
+        activeChatKey = null
         _connectionStatus.value = ConnectionStatus.DISCONNECTED
     }
 

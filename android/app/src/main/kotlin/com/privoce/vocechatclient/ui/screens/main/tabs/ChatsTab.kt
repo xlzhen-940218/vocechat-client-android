@@ -27,6 +27,10 @@ import com.privoce.vocechatclient.data.models.UserInfo
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
 import com.privoce.vocechatclient.ui.components.EmptyStateView
 import com.privoce.vocechatclient.ui.components.VoceAvatar
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -38,20 +42,37 @@ fun ChatsTab(
     val channels by repository.channels.collectAsState()
     val users by repository.users.collectAsState()
     val messagesMap by repository.messages.collectAsState()
+    val unreadCounts by repository.unreadCounts.collectAsState()
     val currentUserId = repository.preferences.currentUserId
     val context = LocalContext.current
 
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredChannels = remember(channels, searchQuery) {
-        if (searchQuery.isBlank()) channels
+    val filteredChannels = remember(channels, searchQuery, messagesMap) {
+        val base = if (searchQuery.isBlank()) channels
         else channels.filter { it.name.contains(searchQuery, ignoreCase = true) }
+        base.sortedByDescending {
+            messagesMap["channel_${it.gid}"]?.lastOrNull()?.createdAt ?: 0L
+        }
     }
 
-    val directMessageUsers = remember(users, currentUserId, searchQuery) {
-        val list = users.filter { it.uid != currentUserId }
-        if (searchQuery.isBlank()) list
-        else list.filter { it.name.contains(searchQuery, ignoreCase = true) || it.email?.contains(searchQuery, ignoreCase = true) == true }
+    val directMessageUsers = remember(users, currentUserId, searchQuery, messagesMap) {
+        val base = if (searchQuery.isBlank()) {
+            // Only show users we already have a conversation with.
+            users.filter {
+                it.uid != currentUserId &&
+                    !messagesMap["dm_${it.uid}"].isNullOrEmpty()
+            }
+        } else {
+            users.filter {
+                it.uid != currentUserId &&
+                    (it.name.contains(searchQuery, ignoreCase = true) ||
+                        it.email?.contains(searchQuery, ignoreCase = true) == true)
+            }
+        }
+        base.sortedByDescending {
+            messagesMap["dm_${it.uid}"]?.lastOrNull()?.createdAt ?: 0L
+        }
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -115,6 +136,8 @@ fun ChatsTab(
                         ChannelItem(
                             channel = channel,
                             lastMessage = lastMsg?.previewText(context),
+                            lastMessageTime = lastMsg?.let { formatChatTime(it.createdAt) },
+                            unreadCount = unreadCounts["channel_${channel.gid}"] ?: 0,
                             onClick = { onOpenChat("channel", channel.gid) }
                         )
                     }
@@ -139,6 +162,8 @@ fun ChatsTab(
                             user = user,
                             avatarUrl = repository.apiClient.getUserAvatarUrl(user.uid, user.avatarUpdatedAt),
                             lastMessage = lastMsg?.previewText(context),
+                            lastMessageTime = lastMsg?.let { formatChatTime(it.createdAt) },
+                            unreadCount = unreadCounts["dm_${user.uid}"] ?: 0,
                             onClick = { onOpenChat("dm", user.uid) }
                         )
                     }
@@ -156,31 +181,41 @@ fun ChatsTab(
 private fun ChannelItem(
     channel: GroupInfo,
     lastMessage: String?,
+    lastMessageTime: String?,
+    unreadCount: Int,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
+            BadgedBox(
+                badge = {
+                    if (unreadCount > 0) {
+                        Badge { Text(if (unreadCount > 99) "99+" else unreadCount.toString()) }
+                    }
+                }
             ) {
-                Icon(
-                    imageVector = if (channel.isPublic) Icons.Default.Tag else Icons.Default.Lock,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(22.dp)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (channel.isPublic) Icons.Default.Tag else Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -203,13 +238,31 @@ private fun ChannelItem(
                 )
             }
 
-            channel.members?.size?.let { count ->
-                if (count > 0) {
-                    SuggestionChip(
-                        onClick = onClick,
-                        label = { Text(stringResource(R.string.chats_member_count, count), fontSize = 11.sp) },
-                        modifier = Modifier.height(28.dp)
+            Column(horizontalAlignment = Alignment.End) {
+                if (lastMessageTime != null) {
+                    Text(
+                        text = lastMessageTime,
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
+                val memberCount = channel.members?.size ?: 0
+                if (memberCount > 0) {
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.People,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = memberCount.toString(),
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -221,26 +274,36 @@ private fun DirectMessageItem(
     user: UserInfo,
     avatarUrl: String?,
     lastMessage: String?,
+    lastMessageTime: String?,
+    unreadCount: Int,
     onClick: () -> Unit
 ) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            VoceAvatar(
-                avatarUrl = avatarUrl,
-                name = user.displayName,
-                size = 44.dp,
-                showOnlineBadge = true,
-                isOnline = user.online,
-                isBot = user.isBot
-            )
+            BadgedBox(
+                badge = {
+                    if (unreadCount > 0) {
+                        Badge { Text(if (unreadCount > 99) "99+" else unreadCount.toString()) }
+                    }
+                }
+            ) {
+                VoceAvatar(
+                    avatarUrl = avatarUrl,
+                    name = user.displayName,
+                    size = 44.dp,
+                    showOnlineBadge = true,
+                    isOnline = user.online,
+                    isBot = user.isBot
+                )
+            }
 
             Spacer(modifier = Modifier.width(12.dp))
 
@@ -279,7 +342,29 @@ private fun DirectMessageItem(
                     overflow = TextOverflow.Ellipsis
                 )
             }
+
+            if (lastMessageTime != null) {
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = lastMessageTime,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
+}
+
+private fun formatChatTime(createdAt: Long): String {
+    val now = Calendar.getInstance()
+    val then = Calendar.getInstance().apply { timeInMillis = createdAt }
+    val sameDay = now.get(Calendar.YEAR) == then.get(Calendar.YEAR) &&
+        now.get(Calendar.DAY_OF_YEAR) == then.get(Calendar.DAY_OF_YEAR)
+    val pattern = when {
+        sameDay -> "HH:mm"
+        now.get(Calendar.YEAR) == then.get(Calendar.YEAR) -> "MM/dd"
+        else -> "yyyy/MM/dd"
+    }
+    return SimpleDateFormat(pattern, Locale.getDefault()).format(Date(createdAt))
 }
 

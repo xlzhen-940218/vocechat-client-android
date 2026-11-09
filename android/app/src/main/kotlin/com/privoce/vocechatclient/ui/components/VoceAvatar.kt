@@ -24,7 +24,6 @@ import coil.request.ImageRequest
 import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.ui.theme.OfflineGray
 import com.privoce.vocechatclient.ui.theme.OnlineGreen
-import kotlin.math.absoluteValue
 
 private val avatarColors = listOf(
     Color(0xFF7E57C2), // Purple (like official Admin avatar)
@@ -50,7 +49,8 @@ fun VoceAvatar(
         name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?"
     }
     val bgColor = remember(name) {
-        avatarColors[name.hashCode().absoluteValue % avatarColors.size]
+        // floorMod 可安全处理 Int.MIN_VALUE，避免取模结果为负导致越界
+        avatarColors[Math.floorMod(name.hashCode(), avatarColors.size)]
     }
 
     Box(

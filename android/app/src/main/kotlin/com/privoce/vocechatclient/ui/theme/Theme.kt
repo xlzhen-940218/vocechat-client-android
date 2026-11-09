@@ -10,7 +10,6 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
@@ -52,6 +51,7 @@ private val DarkColorScheme = darkColorScheme(
     onPrimary = OnPrimaryDark,
     primaryContainer = PrimaryContainerDark,
     onPrimaryContainer = OnPrimaryContainerDark,
+    inversePrimary = PrimaryLight,
     secondary = SecondaryDark,
     onSecondary = OnSecondaryDark,
     secondaryContainer = SecondaryContainerDark,
@@ -66,11 +66,16 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = OnSurfaceDark,
     surfaceVariant = SurfaceVariantDark,
     onSurfaceVariant = OnSurfaceVariantDark,
+    surfaceTint = PrimaryDark,
+    inverseSurface = OnBackgroundDark,
+    inverseOnSurface = BackgroundDark,
+    surfaceBright = SurfaceContainerHighestDark,
+    surfaceDim = SurfaceContainerLowestDark,
+    surfaceContainerLowest = SurfaceContainerLowestDark,
+    surfaceContainerLow = SurfaceContainerLowDark,
     surfaceContainer = SurfaceContainerDark,
     surfaceContainerHigh = SurfaceContainerHighDark,
     surfaceContainerHighest = SurfaceContainerHighestDark,
-    surfaceContainerLow = SurfaceContainerLowDark,
-    surfaceContainerLowest = SurfaceContainerLowestDark,
     outline = OutlineDark,
     outlineVariant = OutlineVariantDark,
     error = ErrorDark,
@@ -98,8 +103,7 @@ fun VoceChatTheme(
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as? Activity)?.window ?: return@SideEffect
-            window.statusBarColor = colorScheme.surface.toArgb()
-            window.navigationBarColor = colorScheme.surface.toArgb()
+            // 已启用 edge-to-edge，系统栏保持透明，仅调整图标明暗
             val insetsController = WindowCompat.getInsetsController(window, view)
             insetsController.isAppearanceLightStatusBars = !darkTheme
             insetsController.isAppearanceLightNavigationBars = !darkTheme

@@ -84,7 +84,7 @@ fun VoceChatNavGraph(
                 },
                 onLogout = {
                     navController.navigate(Screen.Server.route) {
-                        popUpTo(0) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
                 }
             )

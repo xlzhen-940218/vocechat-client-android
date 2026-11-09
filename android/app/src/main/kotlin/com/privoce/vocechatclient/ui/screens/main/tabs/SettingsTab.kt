@@ -5,6 +5,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -31,8 +32,8 @@ fun SettingsTab(
     val serverInfo by repository.serverInfo.collectAsState()
 
     var showLogoutDialog by remember { mutableStateOf(false) }
-    var currentThemeMode by remember { mutableStateOf(repository.preferences.themeMode) }
-    var dynamicColorEnabled by remember { mutableStateOf(repository.preferences.dynamicColor) }
+    val themeMode by repository.preferences.themeModeFlow.collectAsState()
+    val dynamicColorEnabled by repository.preferences.dynamicColorFlow.collectAsState()
 
     if (showLogoutDialog) {
         AlertDialog(
@@ -143,12 +144,12 @@ fun SettingsTab(
                 SettingsItemRow(
                     icon = Icons.Default.Info,
                     title = stringResource(R.string.settings_server_name),
-                    subtitle = serverInfo?.name ?: "VoceChat Server"
+                    subtitle = serverInfo?.name ?: stringResource(R.string.app_name)
                 )
                 SettingsItemRow(
                     icon = Icons.Default.CloudQueue,
                     title = stringResource(R.string.settings_version),
-                    subtitle = serverInfo?.version ?: "0.3.x"
+                    subtitle = serverInfo?.version ?: "-"
                 )
             }
         }
@@ -170,12 +171,41 @@ fun SettingsTab(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
+                Text(
+                    text = stringResource(R.string.settings_theme),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                val themeOptions = listOf(
+                    "system" to stringResource(R.string.settings_theme_system),
+                    "light" to stringResource(R.string.settings_theme_light),
+                    "dark" to stringResource(R.string.settings_theme_dark)
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    themeOptions.forEachIndexed { index, (value, label) ->
+                        SegmentedButton(
+                            selected = themeMode == value,
+                            onClick = { repository.preferences.themeMode = value },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = themeOptions.size
+                            )
+                        ) {
+                            Text(label, maxLines = 1)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = stringResource(R.string.settings_dynamic_color),
                             style = MaterialTheme.typography.bodyLarge,
@@ -190,7 +220,6 @@ fun SettingsTab(
                     Switch(
                         checked = dynamicColorEnabled,
                         onCheckedChange = {
-                            dynamicColorEnabled = it
                             repository.preferences.dynamicColor = it
                         }
                     )
@@ -228,7 +257,7 @@ fun SettingsTab(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(Icons.AutoMirrored.Filled.ExitToApp, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(stringResource(R.string.settings_logout_button))
                 }

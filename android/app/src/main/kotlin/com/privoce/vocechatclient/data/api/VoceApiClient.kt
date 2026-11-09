@@ -114,6 +114,12 @@ class VoceApiClient(
         }
     }
 
+    /** 登出时清除内存中的凭据，避免旧 token 被带到下一个账号。 */
+    fun clearAuth() {
+        token = null
+        refreshToken = null
+    }
+
     private fun buildUrl(path: String): String {
         return "${baseUrl.removeSuffix("/")}/api$path"
     }
@@ -431,31 +437,55 @@ class VoceApiClient(
         }
     }
 
-    suspend fun replyMessage(targetMid: Long, content: String): Result<Long> =
-        postMessageContent(
+    suspend fun replyMessage(
+        targetMid: Long,
+        content: String,
+        cid: String = "client_${System.currentTimeMillis()}",
+        mentions: List<Int> = emptyList()
+    ): Result<Long> {
+        val properties = mutableMapOf<String, Any>("cid" to cid)
+        if (mentions.isNotEmpty()) properties["mentions"] = mentions
+        return postMessageContent(
             path = "/message/$targetMid/reply",
             content = content,
             contentType = "text/plain",
-            properties = mapOf("cid" to "client_${System.currentTimeMillis()}")
+            properties = properties
         )
+    }
 
-    suspend fun sendChannelMessage(gid: Int, content: String, replyToMid: Long? = null): Result<Long> {
-        if (replyToMid != null && replyToMid > 0) return replyMessage(replyToMid, content)
+    suspend fun sendChannelMessage(
+        gid: Int,
+        content: String,
+        replyToMid: Long? = null,
+        cid: String = "client_${System.currentTimeMillis()}",
+        mentions: List<Int> = emptyList()
+    ): Result<Long> {
+        if (replyToMid != null && replyToMid > 0) return replyMessage(replyToMid, content, cid, mentions)
+        val properties = mutableMapOf<String, Any>("cid" to cid)
+        if (mentions.isNotEmpty()) properties["mentions"] = mentions
         return postMessageContent(
             path = "/group/$gid/send",
             content = content,
             contentType = "text/plain",
-            properties = mapOf("cid" to "client_${System.currentTimeMillis()}")
+            properties = properties
         )
     }
 
-    suspend fun sendDirectMessage(dmUid: Int, content: String, replyToMid: Long? = null): Result<Long> {
-        if (replyToMid != null && replyToMid > 0) return replyMessage(replyToMid, content)
+    suspend fun sendDirectMessage(
+        dmUid: Int,
+        content: String,
+        replyToMid: Long? = null,
+        cid: String = "client_${System.currentTimeMillis()}",
+        mentions: List<Int> = emptyList()
+    ): Result<Long> {
+        if (replyToMid != null && replyToMid > 0) return replyMessage(replyToMid, content, cid, mentions)
+        val properties = mutableMapOf<String, Any>("cid" to cid)
+        if (mentions.isNotEmpty()) properties["mentions"] = mentions
         return postMessageContent(
             path = "/user/$dmUid/send",
             content = content,
             contentType = "text/plain",
-            properties = mapOf("cid" to "client_${System.currentTimeMillis()}")
+            properties = properties
         )
     }
 
@@ -617,6 +647,30 @@ class VoceApiClient(
         if (thumbnail) url += "&thumbnail=true"
         return if (!token.isNullOrBlank()) "$url&api-key=$token" else url
     }
+
+    /** 将服务器文件下载到本地缓存，用于内置预览（如 PDF）。 */
+    suspend fun downloadFile(filePath: String, destFile: File): Result<File> =
+        withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder().url(getFileUrl(filePath)).build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        return@withContext Result.failure(
+                            IOException("Download failed: ${response.code}")
+                        )
+                    }
+                    val body = response.body ?: return@withContext Result.failure(
+                        IOException("Empty body")
+                    )
+                    destFile.parentFile?.mkdirs()
+                    destFile.outputStream().use { output -> body.byteStream().copyTo(output) }
+                    Result.success(destFile)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "downloadFile failed", e)
+                Result.failure(e)
+            }
+        }
 
     private fun mapToChatMessage(map: Map<String, Any>, gid: Int? = null, dmUid: Int? = null): ChatMessage? {
         val mid = (map["mid"] as? Number)?.toLong() ?: return null

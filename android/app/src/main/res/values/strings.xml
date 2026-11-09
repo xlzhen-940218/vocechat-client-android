@@ -139,6 +139,7 @@
     <string name="chat_self_name">You</string>
     <string name="chat_fallback_title">Chat #%1$d</string>
     <string name="chat_error_microphone_permission">Microphone permission is required to send voice messages</string>
+    <string name="chat_error_camera_permission">Camera permission is required to take photos or record videos</string>
     <string name="chat_error_start_recording">Unable to start recording</string>
     <string name="chat_error_recording_failed">Recording failed</string>
     <string name="chat_error_recording_too_short">Recording is too short</string>

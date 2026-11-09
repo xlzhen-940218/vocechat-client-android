@@ -135,6 +135,7 @@
     <string name="chat_self_name">나</string>
     <string name="chat_fallback_title">채팅 #%1$d</string>
     <string name="chat_error_microphone_permission">음성 메시지를 보내려면 마이크 권한이 필요합니다</string>
+    <string name="chat_error_camera_permission">사진을 찍거나 비디오를 녹화하려면 카메라 권한이 필요합니다</string>
     <string name="chat_error_start_recording">녹음을 시작할 수 없습니다</string>
     <string name="chat_error_recording_failed">녹음 실패</string>
     <string name="chat_error_recording_too_short">녹음이 너무 짧습니다</string>

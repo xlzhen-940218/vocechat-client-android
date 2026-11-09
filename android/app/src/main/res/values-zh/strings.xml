@@ -139,6 +139,7 @@
     <string name="chat_self_name">我</string>
     <string name="chat_fallback_title">聊天 #%1$d</string>
     <string name="chat_error_microphone_permission">需要麦克风权限才能发送语音</string>
+    <string name="chat_error_camera_permission">需要相机权限才能拍摄照片或录制视频</string>
     <string name="chat_error_start_recording">无法开始录音</string>
     <string name="chat_error_recording_failed">录音失败</string>
     <string name="chat_error_recording_too_short">说话时间太短</string>

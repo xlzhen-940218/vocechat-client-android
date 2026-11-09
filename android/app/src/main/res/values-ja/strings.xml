@@ -135,6 +135,7 @@
     <string name="chat_self_name">自分</string>
     <string name="chat_fallback_title">チャット #%1$d</string>
     <string name="chat_error_microphone_permission">音声メッセージを送信するにはマイクの権限が必要です</string>
+    <string name="chat_error_camera_permission">写真を撮影またはビデオを録画するにはカメラの権限が必要です</string>
     <string name="chat_error_start_recording">録音を開始できません</string>
     <string name="chat_error_recording_failed">録音に失敗しました</string>
     <string name="chat_error_recording_too_short">録音が短すぎます</string>

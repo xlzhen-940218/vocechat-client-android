@@ -1,17 +1,22 @@
 package com.privoce.vocechatclient.ui.screens.chat
 
 import android.Manifest
+import android.app.Activity
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.core.content.FileProvider
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
@@ -213,27 +218,31 @@ fun ChatScreen(
         uri?.let { sendPickedFile(it) }
     }
 
-    // 拍照：先创建缓存文件并通过 FileProvider 暴露给相机应用
-    var cameraImageUri by remember { mutableStateOf<Uri?>(null) }
+    // 拍照：先创建缓存文件并通过 FileProvider 暴露给相机应用，使用 rememberSaveable 保证进程重建/横竖屏切换时不丢失 URI
+    var cameraImageUriString by rememberSaveable { mutableStateOf<String?>(null) }
     val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicture()
+        SafeTakePictureContract()
     ) { success ->
-        val captured = cameraImageUri
-        cameraImageUri = null
-        if (success && captured != null) {
-            sendPickedFile(captured, "image/jpeg")
+        val capturedUriString = cameraImageUriString
+        cameraImageUriString = null
+        if (success && !capturedUriString.isNullOrBlank()) {
+            sendPickedFile(Uri.parse(capturedUriString), "image/jpeg")
         }
     }
 
-    fun launchCamera() {
+    fun launchCameraInternal() {
         try {
-            val file = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+            val cameraDir = File(context.cacheDir, "camera_captures").apply { mkdirs() }
+            val file = File(cameraDir, "camera_${System.currentTimeMillis()}.jpg")
+            if (!file.exists()) {
+                file.createNewFile()
+            }
             val uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
                 file
             )
-            cameraImageUri = uri
+            cameraImageUriString = uri.toString()
             cameraLauncher.launch(uri)
         } catch (e: Exception) {
             Log.e("ChatScreen", "Failed to launch camera", e)
@@ -242,30 +251,72 @@ fun ChatScreen(
     }
 
     // 录像：与拍照一致，先准备缓存文件并通过 FileProvider 交给系统相机
-    var cameraVideoUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraVideoUriString by rememberSaveable { mutableStateOf<String?>(null) }
     val videoCaptureLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.CaptureVideo()
+        SafeCaptureVideoContract()
     ) { success ->
-        val captured = cameraVideoUri
-        cameraVideoUri = null
-        if (success && captured != null) {
-            sendPickedFile(captured, "video/mp4")
+        val capturedUriString = cameraVideoUriString
+        cameraVideoUriString = null
+        if (success && !capturedUriString.isNullOrBlank()) {
+            sendPickedFile(Uri.parse(capturedUriString), "video/mp4")
         }
     }
 
-    fun launchVideoCapture() {
+    fun launchVideoCaptureInternal() {
         try {
-            val file = File(context.cacheDir, "camera_video_${System.currentTimeMillis()}.mp4")
+            val cameraDir = File(context.cacheDir, "camera_captures").apply { mkdirs() }
+            val file = File(cameraDir, "camera_video_${System.currentTimeMillis()}.mp4")
+            if (!file.exists()) {
+                file.createNewFile()
+            }
             val uri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
                 file
             )
-            cameraVideoUri = uri
+            cameraVideoUriString = uri.toString()
             videoCaptureLauncher.launch(uri)
         } catch (e: Exception) {
             Log.e("ChatScreen", "Failed to launch video capture", e)
             Toast.makeText(context, context.getString(R.string.chat_error_read_file), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // 相机权限请求与动作暂存
+    var pendingCameraAction by rememberSaveable { mutableStateOf<String?>(null) }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            when (pendingCameraAction) {
+                "photo" -> launchCameraInternal()
+                "video" -> launchVideoCaptureInternal()
+            }
+        } else {
+            Toast.makeText(
+                context,
+                context.getString(R.string.chat_error_camera_permission),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+        pendingCameraAction = null
+    }
+
+    fun launchCamera() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchCameraInternal()
+        } else {
+            pendingCameraAction = "photo"
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    fun launchVideoCapture() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchVideoCaptureInternal()
+        } else {
+            pendingCameraAction = "video"
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
@@ -1508,6 +1559,66 @@ private fun DateSeparator(timestamp: Long) {
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
             )
         }
+    }
+}
+
+/**
+ * 具有完整 URI 读写授权并适配 Android 14+ / 17 的拍照契约，防止第三方相机无法保存或发生安全异常。
+ */
+class SafeTakePictureContract : ActivityResultContract<Uri, Boolean>() {
+    override fun createIntent(context: Context, input: Uri): Intent {
+        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+            .putExtra(MediaStore.EXTRA_OUTPUT, input)
+            .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        intent.clipData = ClipData.newRawUri("image", input)
+        try {
+            val resInfoList = context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            for (resolveInfo in resInfoList) {
+                val packageName = resolveInfo.activityInfo.packageName
+                context.grantUriPermission(
+                    packageName,
+                    input,
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        } catch (e: Exception) {
+            Log.w("ChatScreen", "Failed to grant URI permissions explicitly", e)
+        }
+        return intent
+    }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): Boolean {
+        return resultCode == Activity.RESULT_OK
+    }
+}
+
+/**
+ * 具有完整 URI 读写授权并适配 Android 14+ / 17 的录像契约。
+ */
+class SafeCaptureVideoContract : ActivityResultContract<Uri, Boolean>() {
+    override fun createIntent(context: Context, input: Uri): Intent {
+        val intent = Intent(MediaStore.ACTION_VIDEO_CAPTURE)
+            .putExtra(MediaStore.EXTRA_OUTPUT, input)
+            .addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        intent.clipData = ClipData.newRawUri("video", input)
+        try {
+            val resInfoList = context.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
+            for (resolveInfo in resInfoList) {
+                val packageName = resolveInfo.activityInfo.packageName
+                context.grantUriPermission(
+                    packageName,
+                    input,
+                    Intent.FLAG_GRANT_WRITE_URI_PERMISSION or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+        } catch (e: Exception) {
+            Log.w("ChatScreen", "Failed to grant URI permissions explicitly", e)
+        }
+        return intent
+    }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): Boolean {
+        return resultCode == Activity.RESULT_OK
     }
 }
 

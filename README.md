@@ -6,30 +6,49 @@
 
 ## 中文
 
-VoceChat Android 原生客户端，基于 **100% Kotlin + Jetpack Compose + Material Design 3** 打造，已完全移除 Flutter，提供更流畅、更现代的用户交互体验。
+VoceChat Android 原生客户端，基于 **100% Kotlin + Jetpack Compose + Google Material Design 3 (Material You)** 打造。彻底移除了旧版 Flutter 及其跨平台冗余依赖，专注于为 Android 平台提供极速流畅、沉浸美观的即时通讯交互体验。
+
+### 界面预览
+
+| 服务器配置 | 账户登录 | 消息列表 |
+| :---: | :---: | :---: |
+| <img src="screenshots/01_server_config.png" width="240" alt="服务器配置" /> | <img src="screenshots/02_login.png" width="240" alt="账户登录" /> | <img src="screenshots/03_chat_list.png" width="240" alt="消息列表" /> |
+
+| 通讯录 | 外观与个性化设置 | 聊天详情 | 多媒体附件操作 |
+| :---: | :---: | :---: | :---: |
+| <img src="screenshots/04_contacts.png" width="220" alt="通讯录" /> | <img src="screenshots/05_settings.png" width="220" alt="外观与个性化设置" /> | <img src="screenshots/06_chat_conversation.png" width="220" alt="聊天详情" /> | <img src="screenshots/07_attachment_actions.png" width="220" alt="多媒体附件操作" /> |
+
+---
 
 ### 核心特性
 
-- **现代化架构**
-  - 100% Kotlin（JVM 17 / 21）
-  - Jetpack Compose + Material Design 3
-  - Jetpack Navigation Compose
-  - Kotlin Coroutines + StateFlow 响应式状态管理
-- **网络通信**
-  - REST API：OkHttp 4 + Gson
-  - 实时通信：OkHttp-SSE（Server-Sent Events），实时接收消息与在线状态
-  - 图片加载：Coil 2（异步缓存与高性能渲染）
-- **Material You 界面**
-  - Android 12+ 动态壁纸取色，深浅主题自适应
-  - 频道与私聊会话、未读状态、成员数展示
-  - 文本 / Markdown / 图片预览 / 文件附件 / 语音消息
-  - 引用回复、长按表情表态、消息删除
-  - 通讯录全部 / 在线过滤、用户详情与一键私聊
-  - 服务器连接检测与连接状态提示
-- **多语言支持**
-  - 内置 7 种语言：简体中文、English、Deutsch、Français、Español、日本語、한국어
-  - 跟随系统语言自动切换，也可在 Android 13+ 的「应用语言」设置中单独选择
-  - 所有界面文案、错误提示、Toast 与资源字符串均已本地化，无硬编码文案
+- **纯血原生架构**
+  - **100% Kotlin Native**（JVM 17 / 21），彻底剔除 Flutter，启动秒开，包体与内存占用大幅优化。
+  - **Jetpack Compose + Material Design 3**：全面适配 Google Material You 规范。
+  - **Jetpack Navigation Compose** 页面导航路由与转场动画。
+  - **Kotlin 协程 + StateFlow** 响应式单向数据流架构。
+- **Material You 现代交互体验**
+  - **动态壁纸取色**：支持 Android 12+ Material You 动态色彩提取，UI 配色自适应系统壁纸。
+  - **深浅主题切换**：支持跟随系统、浅色模式、深色模式自由切换。
+  - **键盘友好交互**：输入框精准跟随软键盘平滑上浮（WindowSoftInputMode `adjustResize` 与 Window Insets 自适应），杜绝输入被遮挡。
+  - **沉浸式多媒体全屏预览**：沉浸式隐藏状态栏与导航栏，支持高清大图左右手势水平滑动分页（Horizontal Pager）、缩放与双击查看。
+- **全功能即时通讯**
+  - **消息类型**：文本、Markdown 渲染、图片、音视频、文件附件与动态 Emoji 表情。
+  - **消息交互**：气泡区分左右对齐（左侧他人，右侧自己）、引用回复（Quote Reply）、表情表态（Reactions）、复制、撤回/删除与发送失败一键重试。
+  - **相机与录像安全适配**：安全支持拍摄照片与录制视频并一键发送，深度适配 Android 14+ / 17 安全 `FileProvider` 授权与 `rememberSaveable` 状态恢复，横竖屏切换无闪退。
+  - **语音消息录制与播放**：长按即录、松开发送，实时动态音频波形振幅渲染与时长提示。
+  - **通讯录与在线状态**：联系人全部 / 在线过滤筛选、自定义头像与默认头像渲染、在线/离线指示器、一键发起私信。
+- **稳定高效的网络与数据层**
+  - **REST API**：OkHttp 4 + Gson，统一网络模型映射。
+  - **SSE 实时流**：OkHttp-SSE（Server-Sent Events）双工长连接，毫秒级推送聊天消息与成员在线状态。
+  - **短效令牌自动续期**：内置 `TokenAuthenticator`，针对 VoceChat 服务端 5 分钟短效令牌提供无感续签与请求重试。
+  - **高性能图片缓存**：Coil 2 双级内存与磁盘缓存，平滑加载网络头像与聊天多媒体缩略图。
+- **多语言与国际化支持**
+  - 内置 **7 种语言**：简体中文（zh）、English（en）、Deutsch（de）、Español（es）、Français（fr）、日本語（ja）、한국어（ko）。
+  - 跟随系统语言自动适配，支持 Android 13+「应用语言（Per-App Language）」偏好单独设置。
+  - 所有界面文案、状态标签、对话框与 Toast 提示均使用资源字符串本地化，零硬编码。
+
+---
 
 ### 项目结构
 
@@ -39,100 +58,100 @@ android/
 │   ├── build.gradle
 │   └── src/main/
 │       ├── AndroidManifest.xml
-│       ├── java/com/privoce/vocechatclient/
-│       │   ├── data/          # API、模型、仓库、本地存储
-│       │   └── ui/            # Compose 页面、组件、主题、导航
+│       ├── kotlin/com/privoce/vocechatclient/
+│       │   ├── data/
+│       │   │   ├── api/           # VoceApiClient、VoceSseClient、TokenAuthenticator
+│       │   │   ├── models/        # 数据模型（Message、User、Channel 等）
+│       │   │   ├── repository/    # VoceChatRepository 统一数据仓库
+│       │   │   └── storage/       # 本地首选项及用户状态持久化
+│       │   └── ui/
+│       │       ├── components/    # VoceAvatar、AudioPlayer、VoiceRecorder 等通用组件
+│       │       ├── screens/       # 登录、聊天、会话列表、通讯录、设置等 Compose 页面
+│       │       └── theme/         # Material 3 ColorScheme、Type 与 Theme 定义
 │       └── res/
 │           ├── values/            # 默认语言（English）
 │           ├── values-zh/         # 简体中文
 │           ├── values-de/         # 德语
-│           ├── values-fr/         # 法语
 │           ├── values-es/         # 西班牙语
+│           ├── values-fr/         # 法语
 │           ├── values-ja/         # 日语
 │           ├── values-ko/         # 韩语
+│           ├── xml/file_paths.xml # FileProvider 共享目录
 │           └── xml/locales_config.xml
 └── build.gradle
 ```
 
+---
+
 ### 编译与运行
 
-使用 Android Studio 打开项目根目录或 `android/` 目录，等待 Gradle Sync 完成后运行：
+1. 使用 **Android Studio Iguana / Jellyfish / Koala** 或更高版本打开项目根目录或 `android/` 目录。
+2. 等待 Gradle 同步完成后，通过命令行或 Android Studio 运行：
 
 ```bash
 cd android
 ./gradlew assembleDebug
 ```
 
-生成的 APK：
+生成的 APK 文件路径：
 
 ```
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-> 若仓库中未包含 Gradle Wrapper，可使用本机 Gradle 或让 Android Studio 自动生成 `gradlew`。
+安装到连接的设备：
 
-### 本地化说明
-
-- 默认语言资源位于 `values/strings.xml`（English），其余语言位于对应的 `values-<locale>/strings.xml`。
-- 新增文案时，请同时在所有 `values-*` 目录中补充翻译，避免回退到默认语言。
-- `locales_config.xml` 声明了应用支持的语言列表，用于 Android 13+ 的按应用语言设置。
-- 带占位符的字符串使用 `%1$s` / `%1$d` 格式，翻译时需保持占位符一致。
+```bash
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```
 
 ---
 
 ## English
 
-A native VoceChat Android client built with **100% Kotlin + Jetpack Compose + Material Design 3**. The Flutter implementation has been fully removed, delivering a smoother and more modern user experience.
+A native VoceChat Android client built with **100% Kotlin + Jetpack Compose + Google Material Design 3 (Material You)**. The Flutter framework has been completely removed to deliver an ultra-responsive, lightweight, and modern user experience tailored for Android.
+
+### Screenshots
+
+| Server Configuration | Sign In | Chats List |
+| :---: | :---: | :---: |
+| <img src="screenshots/01_server_config.png" width="240" alt="Server Configuration" /> | <img src="screenshots/02_login.png" width="240" alt="Sign In" /> | <img src="screenshots/03_chat_list.png" width="240" alt="Chats List" /> |
+
+| Contacts | Appearance & Settings | Chat Conversation | Media & Attachments |
+| :---: | :---: | :---: | :---: |
+| <img src="screenshots/04_contacts.png" width="220" alt="Contacts" /> | <img src="screenshots/05_settings.png" width="220" alt="Appearance & Settings" /> | <img src="screenshots/06_chat_conversation.png" width="220" alt="Chat Conversation" /> | <img src="screenshots/07_attachment_actions.png" width="220" alt="Media & Attachments" /> |
+
+---
 
 ### Features
 
-- **Modern architecture**
-  - 100% Kotlin (JVM 17 / 21)
-  - Jetpack Compose + Material Design 3
-  - Jetpack Navigation Compose
-  - Kotlin Coroutines + StateFlow for reactive state management
-- **Networking**
-  - REST API: OkHttp 4 + Gson
-  - Real-time: OkHttp-SSE (Server-Sent Events) for messages and presence
-  - Image loading: Coil 2 (async caching and high-performance rendering)
-- **Material You UI**
-  - Dynamic wallpaper colors on Android 12+ with light/dark theme support
-  - Channels and direct messages, unread state, member counts
-  - Text / Markdown / image preview / file attachments / voice messages
-  - Quoted replies, long-press reactions, message deletion
-  - Contacts with all/online filters, user details, one-tap direct message
-  - Server connectivity check and connection status indicator
-- **Localization**
-  - 7 built-in languages: Simplified Chinese, English, German, French, Spanish, Japanese, Korean
-  - Follows the system language automatically; can also be selected per app on Android 13+
-  - All UI text, error messages, toasts, and resource strings are localized — no hardcoded copy
+- **Native Architecture**
+  - **100% Kotlin Native** (JVM 17 / 21) with complete removal of Flutter dependencies.
+  - **Jetpack Compose + Material Design 3** implementing Google's Material You design guidelines.
+  - **Jetpack Navigation Compose** for smooth page transitions.
+  - **Coroutines & StateFlow** for reactive unidirectional data flow.
+- **Material You UI & Interactions**
+  - **Dynamic Theming**: Android 12+ wallpaper color extraction with light and dark theme modes.
+  - **IME-Aware Input**: Chat input bar smoothly adjusts when the soft keyboard appears (`adjustResize` with Window Insets).
+  - **Immersive Fullscreen Media Preview**: Edge-to-edge fullscreen preview hiding system bars, supporting horizontal paging gestures, zooming, and double-tap zoom.
+- **Comprehensive Messaging**
+  - **Message Types**: Text, Markdown rendering, images, audio, video, documents, and emoji picker.
+  - **Rich Message Actions**: Message alignment (others on the left, self on the right), quoted reply, emoji reactions, copy, delete, and one-tap retry for failed messages.
+  - **Camera & Video Capture**: Take photos and record videos seamlessly with Android 14+ / 17 safe `FileProvider` grant handling and `rememberSaveable` state restoration.
+  - **Voice Messages**: Hold-to-record voice notes with real-time waveform visualizer and AAC playback.
+  - **Contacts & Presence**: Filter contacts by all/online, view user details, and initiate direct chats.
+- **Networking & Reliability**
+  - **REST API**: OkHttp 4 + Gson.
+  - **Real-time SSE**: Server-Sent Events connection for instant message delivery and presence updates.
+  - **Silent Token Renewal**: Custom `TokenAuthenticator` seamlessly refreshes VoceChat's 5-minute access tokens.
+  - **Image Loading**: Coil 2 with multi-level memory and disk cache.
+- **Internationalization**
+  - Built-in translations for **7 languages**: English, Simplified Chinese, German, Spanish, French, Japanese, and Korean.
+  - Automatically follows system locale or per-app language settings on Android 13+.
 
-### Project structure
+---
 
-```
-android/
-├── app/
-│   ├── build.gradle
-│   └── src/main/
-│       ├── AndroidManifest.xml
-│       ├── java/com/privoce/vocechatclient/
-│       │   ├── data/          # API, models, repository, local storage
-│       │   └── ui/            # Compose screens, components, theme, navigation
-│       └── res/
-│           ├── values/            # Default locale (English)
-│           ├── values-zh/         # Simplified Chinese
-│           ├── values-de/         # German
-│           ├── values-fr/         # French
-│           ├── values-es/         # Spanish
-│           ├── values-ja/         # Japanese
-│           ├── values-ko/         # Korean
-│           └── xml/locales_config.xml
-└── build.gradle
-```
-
-### Build & run
-
-Open the project root or the `android/` directory in Android Studio, wait for Gradle Sync, then run:
+### Build & Run
 
 ```bash
 cd android
@@ -145,11 +164,8 @@ Output APK:
 android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-> If the Gradle Wrapper is not included in the repository, use your local Gradle installation or let Android Studio generate `gradlew`.
+Install to device via ADB:
 
-### Localization notes
-
-- Default strings live in `values/strings.xml` (English); other locales live in the corresponding `values-<locale>/strings.xml`.
-- When adding new copy, add translations to every `values-*` directory to avoid falling back to the default locale.
-- `locales_config.xml` declares the supported languages for Android 13+ per-app language settings.
-- Strings with placeholders use `%1$s` / `%1$d`; keep placeholders consistent across translations.
+```bash
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+```

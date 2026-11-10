@@ -32,9 +32,10 @@ VoceChat Android 原生客户端，基于 **100% Kotlin + Jetpack Compose + Goog
   - **深浅主题切换**：支持跟随系统、浅色模式、深色模式自由切换。
   - **键盘友好交互**：输入框精准跟随软键盘平滑上浮（WindowSoftInputMode `adjustResize` 与 Window Insets 自适应），杜绝输入被遮挡。
   - **沉浸式多媒体全屏预览**：沉浸式隐藏状态栏与导航栏，支持高清大图左右手势水平滑动分页（Horizontal Pager）、缩放与双击查看。
+  - **附件一键下载归档**：预览页内置下载按钮，图片 / 视频 / 文档按类型自动归档到 `Download/VoceChat/{Images|Videos|Audios|Files}`；Android 10+ 通过 MediaStore 写入共享目录免存储权限，旧版本自动申请存储权限。
 - **全功能即时通讯**
-  - **消息类型**：文本、Markdown 渲染、图片、音视频、文件附件与动态 Emoji 表情。
-  - **消息交互**：气泡区分左右对齐（左侧他人，右侧自己）、引用回复（Quote Reply）、表情表态（Reactions）、复制、撤回/删除与发送失败一键重试。
+  - **消息类型**：文本、图片、音视频、文件附件与动态 Emoji 表情，兼容服务端 `text/markdown` 消息类型。
+  - **消息交互**：气泡区分左右对齐（左侧他人，右侧自己）、引用回复（Quote Reply）、表情表态（Reactions）、一键复制消息文本、删除与发送失败一键重试。
   - **相机与录像安全适配**：安全支持拍摄照片与录制视频并一键发送，深度适配 Android 14+ / 17 安全 `FileProvider` 授权与 `rememberSaveable` 状态恢复，横竖屏切换无闪退。
   - **语音消息录制与播放**：长按即录、松开发送，实时动态音频波形振幅渲染与时长提示。
   - **通讯录与在线状态**：联系人全部 / 在线过滤筛选、自定义头像与默认头像渲染、在线/离线指示器、一键发起私信。
@@ -63,7 +64,7 @@ android/
 │       │   │   ├── api/           # VoceApiClient、VoceSseClient、TokenAuthenticator
 │       │   │   ├── models/        # 数据模型（Message、User、Channel 等）
 │       │   │   ├── repository/    # VoceChatRepository 统一数据仓库
-│       │   │   └── storage/       # 本地首选项及用户状态持久化
+│       │   │   └── storage/       # AppPreferences 本地首选项、AttachmentSaver 附件下载归档
 │       │   └── ui/
 │       │       ├── components/    # VoceAvatar、AudioPlayer、VoiceRecorder 等通用组件
 │       │       ├── screens/       # 登录、聊天、会话列表、通讯录、设置等 Compose 页面
@@ -86,7 +87,8 @@ android/
 ### 编译与运行
 
 1. 使用 **Android Studio Iguana / Jellyfish / Koala** 或更高版本打开项目根目录或 `android/` 目录。
-2. 等待 Gradle 同步完成后，通过命令行或 Android Studio 运行：
+2. 构建需要 **JDK 17 及以上**（AGP 9.x 要求，Android Studio 自带的 JBR 即可）。若命令行提示 `Unsupported class file major version` 或找不到 Java，请将 `JAVA_HOME` 指向 JDK 17 / 21。
+3. 等待 Gradle 同步完成后，通过命令行或 Android Studio 运行：
 
 ```bash
 cd android
@@ -134,9 +136,10 @@ A native VoceChat Android client built with **100% Kotlin + Jetpack Compose + Go
   - **Dynamic Theming**: Android 12+ wallpaper color extraction with light and dark theme modes.
   - **IME-Aware Input**: Chat input bar smoothly adjusts when the soft keyboard appears (`adjustResize` with Window Insets).
   - **Immersive Fullscreen Media Preview**: Edge-to-edge fullscreen preview hiding system bars, supporting horizontal paging gestures, zooming, and double-tap zoom.
+  - **One-Tap Attachment Download**: Save images, videos, and documents straight from the preview screen, auto-filed by type into `Download/VoceChat/{Images|Videos|Audios|Files}` — written through MediaStore on Android 10+ (no storage permission), with a runtime permission request on older versions.
 - **Comprehensive Messaging**
-  - **Message Types**: Text, Markdown rendering, images, audio, video, documents, and emoji picker.
-  - **Rich Message Actions**: Message alignment (others on the left, self on the right), quoted reply, emoji reactions, copy, delete, and one-tap retry for failed messages.
+  - **Message Types**: Text, images, audio, video, documents, and emoji picker (server `text/markdown` payloads are supported).
+  - **Rich Message Actions**: Message alignment (others on the left, self on the right), quoted reply, emoji reactions, one-tap copy of message text, delete, and one-tap retry for failed messages.
   - **Camera & Video Capture**: Take photos and record videos seamlessly with Android 14+ / 17 safe `FileProvider` grant handling and `rememberSaveable` state restoration.
   - **Voice Messages**: Hold-to-record voice notes with real-time waveform visualizer and AAC playback.
   - **Contacts & Presence**: Filter contacts by all/online, view user details, and initiate direct chats.
@@ -152,6 +155,8 @@ A native VoceChat Android client built with **100% Kotlin + Jetpack Compose + Go
 ---
 
 ### Build & Run
+
+Requires **JDK 17 or newer** (AGP 9.x — the JBR bundled with Android Studio works). Set `JAVA_HOME` to a JDK 17 / 21 installation if Gradle reports `Unsupported class file major version`.
 
 ```bash
 cd android

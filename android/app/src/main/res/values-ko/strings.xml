@@ -13,6 +13,7 @@
     <string name="action_system_admin">시스템 관리자</string>
     <string name="action_close_preview">미리보기 닫기</string>
     <string name="action_view_image">이미지 보기</string>
+    <string name="action_download">다운로드</string>
     <string name="fallback_user_name">사용자 #%1$d</string>
     <string name="fallback_uid">UID: %1$d</string>
 
@@ -118,6 +119,8 @@
     <string name="chat_message_actions">메시지 작업</string>
     <string name="chat_reply">답장</string>
     <string name="chat_delete_message">메시지 삭제</string>
+    <string name="chat_copy_message">메시지 복사</string>
+    <string name="chat_copied_to_clipboard">클립보드에 복사했습니다</string>
     <string name="chat_replying_to">%1$s에게 답장</string>
     <string name="chat_recording">녹음 중 %1$d초</string>
     <string name="chat_recording_hint">위로 밀어 취소, 놓으면 전송</string>
@@ -148,6 +151,9 @@
     <string name="chat_attachment_image">이미지</string>
     <string name="chat_attachment_video">동영상</string>
     <string name="chat_attachment_file">파일</string>
+    <string name="chat_download_success">%1$s에 저장했습니다</string>
+    <string name="chat_download_failed">다운로드 실패: %1$s</string>
+    <string name="chat_error_storage_permission">첨부 파일을 저장하려면 저장소 권한이 필요합니다</string>
 
     <!-- 메시지 미리보기 -->
     <string name="preview_image">[이미지]</string>

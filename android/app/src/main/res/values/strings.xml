@@ -13,6 +13,7 @@
     <string name="action_system_admin">System administrator</string>
     <string name="action_close_preview">Close preview</string>
     <string name="action_view_image">View image</string>
+    <string name="action_download">Download</string>
     <string name="fallback_user_name">User #%1$d</string>
     <string name="fallback_uid">UID: %1$d</string>
 
@@ -118,6 +119,8 @@
     <string name="chat_message_actions">Message actions</string>
     <string name="chat_reply">Reply</string>
     <string name="chat_delete_message">Delete message</string>
+    <string name="chat_copy_message">Copy message</string>
+    <string name="chat_copied_to_clipboard">Copied to clipboard</string>
     <string name="chat_replying_to">Replying to %1$s</string>
     <string name="chat_recording">Recording %1$ds</string>
     <string name="chat_recording_hint">Swipe up to cancel, release to send</string>
@@ -154,6 +157,9 @@
     <string name="chat_attachment_image">Image</string>
     <string name="chat_attachment_video">Video</string>
     <string name="chat_attachment_file">File</string>
+    <string name="chat_download_success">Saved to %1$s</string>
+    <string name="chat_download_failed">Download failed: %1$s</string>
+    <string name="chat_error_storage_permission">Storage permission is required to save attachments</string>
     <string name="chat_mention">Mention someone</string>
     <string name="chat_mention_empty">No matching members</string>
     <string name="chat_pdf_preview_failed">Unable to preview this document</string>

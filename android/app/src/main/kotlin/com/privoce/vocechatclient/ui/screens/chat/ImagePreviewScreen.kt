@@ -1,8 +1,10 @@
 package com.privoce.vocechatclient.ui.screens.chat
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
@@ -15,6 +17,9 @@ import android.view.WindowManager
 import android.widget.Toast
 import android.widget.VideoView
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -51,6 +56,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -67,6 +73,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -92,8 +99,10 @@ import coil.request.ImageRequest
 import com.privoce.vocechatclient.R
 import com.privoce.vocechatclient.data.models.ChatMessage
 import com.privoce.vocechatclient.data.repository.VoceChatRepository
+import com.privoce.vocechatclient.data.storage.AttachmentSaver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -124,6 +133,36 @@ fun MediaPreviewScreen(
     LaunchedEffect(pagerState.currentPage) {
         zoomed = false
     }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isDownloading by remember { mutableStateOf(false) }
+
+    // 下载当前查看的附件到 Download/VoceChat/{类型} 目录
+    fun downloadCurrentItem() {
+        val message = items.getOrNull(pagerState.currentPage) ?: return
+        if (isDownloading) return
+        isDownloading = true
+        scope.launch {
+            val result = AttachmentSaver.saveRemoteAttachment(context, repository.apiClient, message)
+            isDownloading = false
+            result.onSuccess { saved ->
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.chat_download_success, saved.displayPath),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }.onFailure { e ->
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.chat_download_failed, e.message ?: ""),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    val requestDownload = rememberDownloadAction { downloadCurrentItem() }
 
     Box(
         modifier = Modifier
@@ -156,6 +195,32 @@ fun MediaPreviewScreen(
                         if (page == pagerState.currentPage) zoomed = isZoomed
                     },
                     onTapClose = onClose
+                )
+            }
+        }
+
+        // 下载当前附件到公共下载目录
+        IconButton(
+            onClick = { requestDownload() },
+            enabled = !isDownloading,
+            modifier = Modifier
+                .displayCutoutPadding()
+                .statusBarsPadding()
+                .padding(12.dp)
+                .align(Alignment.TopStart)
+                .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50))
+        ) {
+            if (isDownloading) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(22.dp)
+                )
+            } else {
+                Icon(
+                    Icons.Default.Download,
+                    contentDescription = stringResource(R.string.action_download),
+                    tint = Color.White
                 )
             }
         }
@@ -468,6 +533,7 @@ private fun ZoomableImage(
 fun PdfPreviewDialog(
     file: File,
     title: String,
+    fileName: String = title,
     onClose: () -> Unit
 ) {
     var pageCount by remember(file) { mutableStateOf<Int?>(null) }
@@ -490,6 +556,41 @@ fun PdfPreviewDialog(
         pageCount = count
         failed = count == null
     }
+
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isDownloading by remember { mutableStateOf(false) }
+
+    // 把预览中的文档另存到 Download/VoceChat/Files 目录
+    fun downloadDocument() {
+        if (isDownloading) return
+        isDownloading = true
+        scope.launch {
+            val result = AttachmentSaver.saveLocalFile(
+                context = context,
+                source = file,
+                folder = AttachmentSaver.FOLDER_FILES,
+                fileName = fileName,
+                mimeType = "application/pdf"
+            )
+            isDownloading = false
+            result.onSuccess { saved ->
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.chat_download_success, saved.displayPath),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }.onFailure { e ->
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.chat_download_failed, e.message ?: ""),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
+    val requestDownload = rememberDownloadAction { downloadDocument() }
 
     BackHandler(onBack = onClose)
     ImmersiveSystemBars()
@@ -540,6 +641,27 @@ fun PdfPreviewDialog(
                         fontSize = 12.sp,
                         modifier = Modifier.padding(end = 8.dp)
                     )
+                }
+
+                // 保存到公共下载目录
+                IconButton(
+                    onClick = { requestDownload() },
+                    enabled = !isDownloading,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    if (isDownloading) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Download,
+                            contentDescription = stringResource(R.string.action_download),
+                            tint = Color.White
+                        )
+                    }
                 }
             }
 
@@ -631,6 +753,43 @@ private fun PdfPageItem(
             contentAlignment = Alignment.Center
         ) {
             CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp)
+        }
+    }
+}
+
+/**
+ * 附件下载入口：
+ * Android 9（API 28）及以下写公共下载目录需要 WRITE_EXTERNAL_STORAGE 运行时权限，
+ * Android 10 及以上通过 MediaStore 写入共享目录，无需额外权限。
+ */
+@Composable
+private fun rememberDownloadAction(onDownload: () -> Unit): () -> Unit {
+    val context = LocalContext.current
+    val currentOnDownload by rememberUpdatedState(onDownload)
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            currentOnDownload()
+        } else {
+            Toast.makeText(
+                context,
+                context.getString(R.string.chat_error_storage_permission),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    return {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            permissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+        } else {
+            currentOnDownload()
         }
     }
 }

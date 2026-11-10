@@ -3,10 +3,12 @@ package com.privoce.vocechatclient.ui.screens.chat
 import android.Manifest
 import android.app.Activity
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import android.util.Log
@@ -155,6 +157,7 @@ fun ChatScreen(
 
     // 文档预览相关状态
     var pdfPreviewFile by remember { mutableStateOf<File?>(null) }
+    var pdfPreviewName by remember { mutableStateOf<String?>(null) }
     var pdfPreviewLoading by remember { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -409,6 +412,8 @@ fun ChatScreen(
         if (filePath.endsWith(".pdf", ignoreCase = true)) {
             if (pdfPreviewLoading) return
             pdfPreviewLoading = true
+            // 保留原始文件名，保存到下载目录时使用
+            pdfPreviewName = filePath.substringAfterLast('/').substringAfterLast('\\')
             scope.launch {
                 val dest = File(context.cacheDir, "preview_${System.currentTimeMillis()}.pdf")
                 val result = withContext(Dispatchers.IO) {
@@ -541,6 +546,27 @@ fun ChatScreen(
                         selectedMessageForOptions = null
                     }
                 )
+
+                // 复制消息文本（仅纯文本消息可复制）
+                msg.copyableText?.let { copyText ->
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.chat_copy_message)) },
+                        leadingContent = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                        modifier = Modifier.clickable {
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                            clipboard?.setPrimaryClip(ClipData.newPlainText(title, copyText))
+                            selectedMessageForOptions = null
+                            // Android 13+ 系统自带复制提示，避免重复提示
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                                Toast.makeText(
+                                    context,
+                                    context.getString(R.string.chat_copied_to_clipboard),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
+                }
 
                 if (msg.fromUid == currentUserId && msg.status == MessageStatus.FAILED) {
                     ListItem(
@@ -1054,7 +1080,8 @@ fun ChatScreen(
         pdfPreviewFile?.let { file ->
             PdfPreviewDialog(
                 file = file,
-                title = file.name,
+                title = pdfPreviewName ?: file.name,
+                fileName = pdfPreviewName ?: file.name,
                 onClose = { pdfPreviewFile = null }
             )
         }

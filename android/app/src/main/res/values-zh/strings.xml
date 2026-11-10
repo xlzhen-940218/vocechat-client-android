@@ -13,6 +13,7 @@
     <string name="action_system_admin">系统管理员</string>
     <string name="action_close_preview">关闭预览</string>
     <string name="action_view_image">查看大图</string>
+    <string name="action_download">下载</string>
     <string name="fallback_user_name">用户 #%1$d</string>
     <string name="fallback_uid">UID: %1$d</string>
 
@@ -118,6 +119,8 @@
     <string name="chat_message_actions">消息操作</string>
     <string name="chat_reply">回复此消息</string>
     <string name="chat_delete_message">删除消息</string>
+    <string name="chat_copy_message">复制消息</string>
+    <string name="chat_copied_to_clipboard">已复制到剪贴板</string>
     <string name="chat_replying_to">回复: %1$s</string>
     <string name="chat_recording">正在录音 %1$d 秒</string>
     <string name="chat_recording_hint">上滑取消，松开发送</string>
@@ -154,6 +157,9 @@
     <string name="chat_attachment_image">图片</string>
     <string name="chat_attachment_video">视频</string>
     <string name="chat_attachment_file">文件</string>
+    <string name="chat_download_success">已保存到 %1$s</string>
+    <string name="chat_download_failed">下载失败：%1$s</string>
+    <string name="chat_error_storage_permission">需要存储权限才能保存附件</string>
     <string name="chat_mention">提及成员</string>
     <string name="chat_mention_empty">没有匹配的成员</string>
     <string name="chat_pdf_preview_failed">无法预览此文档</string>

@@ -17,6 +17,7 @@ import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.IOException
+import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 
 class VoceApiClient(
@@ -668,6 +669,29 @@ class VoceApiClient(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "downloadFile failed", e)
+                Result.failure(e)
+            }
+        }
+
+    /** 将服务器文件流式写入指定输出流（用于保存到系统媒体库等场景）。 */
+    suspend fun downloadFileToStream(filePath: String, outputStream: OutputStream): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder().url(getFileUrl(filePath)).build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        return@withContext Result.failure(
+                            IOException("Download failed: ${response.code}")
+                        )
+                    }
+                    val body = response.body ?: return@withContext Result.failure(
+                        IOException("Empty body")
+                    )
+                    body.byteStream().copyTo(outputStream)
+                    Result.success(Unit)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "downloadFileToStream failed", e)
                 Result.failure(e)
             }
         }

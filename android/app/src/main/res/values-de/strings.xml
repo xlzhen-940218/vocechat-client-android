@@ -13,6 +13,7 @@
     <string name="action_system_admin">Systemadministrator</string>
     <string name="action_close_preview">Vorschau schließen</string>
     <string name="action_view_image">Bild anzeigen</string>
+    <string name="action_download">Herunterladen</string>
     <string name="fallback_user_name">Benutzer #%1$d</string>
     <string name="fallback_uid">UID: %1$d</string>
 
@@ -118,6 +119,8 @@
     <string name="chat_message_actions">Nachrichtenaktionen</string>
     <string name="chat_reply">Antworten</string>
     <string name="chat_delete_message">Nachricht löschen</string>
+    <string name="chat_copy_message">Nachricht kopieren</string>
+    <string name="chat_copied_to_clipboard">In die Zwischenablage kopiert</string>
     <string name="chat_replying_to">Antwort an %1$s</string>
     <string name="chat_recording">Aufnahme %1$d s</string>
     <string name="chat_recording_hint">Nach oben wischen zum Abbrechen, loslassen zum Senden</string>
@@ -148,6 +151,9 @@
     <string name="chat_attachment_image">Bild</string>
     <string name="chat_attachment_video">Video</string>
     <string name="chat_attachment_file">Datei</string>
+    <string name="chat_download_success">Gespeichert unter %1$s</string>
+    <string name="chat_download_failed">Download fehlgeschlagen: %1$s</string>
+    <string name="chat_error_storage_permission">Für das Speichern von Anhängen wird die Speicherberechtigung benötigt</string>
 
     <!-- Nachrichtenvorschau -->
     <string name="preview_image">[Bild]</string>

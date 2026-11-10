@@ -59,6 +59,14 @@ data class ChatMessage(
     val isMarkdown: Boolean
         get() = contentType == "text/markdown"
 
+    /** 是否为纯文本消息（气泡中以文本形式渲染，非图片/语音/视频/文件）。 */
+    val isTextMessage: Boolean
+        get() = !isImage && !isAudio && !isVideo && !isFile
+
+    /** 可复制到剪贴板的文本内容；非纯文本消息或空内容返回 null。 */
+    val copyableText: String?
+        get() = if (isTextMessage) content.takeIf { it.isNotBlank() } else null
+
     val fileName: String
         get() = properties?.get("name")?.toString() ?: content.substringAfterLast("/")
 

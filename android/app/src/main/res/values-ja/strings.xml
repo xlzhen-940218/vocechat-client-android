@@ -13,6 +13,7 @@
     <string name="action_system_admin">システム管理者</string>
     <string name="action_close_preview">プレビューを閉じる</string>
     <string name="action_view_image">画像を表示</string>
+    <string name="action_download">ダウンロード</string>
     <string name="fallback_user_name">ユーザー #%1$d</string>
     <string name="fallback_uid">UID: %1$d</string>
 
@@ -118,6 +119,8 @@
     <string name="chat_message_actions">メッセージ操作</string>
     <string name="chat_reply">返信</string>
     <string name="chat_delete_message">メッセージを削除</string>
+    <string name="chat_copy_message">メッセージをコピー</string>
+    <string name="chat_copied_to_clipboard">クリップボードにコピーしました</string>
     <string name="chat_replying_to">%1$s に返信中</string>
     <string name="chat_recording">録音中 %1$d 秒</string>
     <string name="chat_recording_hint">上にスワイプでキャンセル、離して送信</string>
@@ -148,6 +151,9 @@
     <string name="chat_attachment_image">画像</string>
     <string name="chat_attachment_video">動画</string>
     <string name="chat_attachment_file">ファイル</string>
+    <string name="chat_download_success">%1$s に保存しました</string>
+    <string name="chat_download_failed">ダウンロードに失敗しました：%1$s</string>
+    <string name="chat_error_storage_permission">添付ファイルを保存するにはストレージ権限が必要です</string>
 
     <!-- メッセージプレビュー -->
     <string name="preview_image">[画像]</string>
